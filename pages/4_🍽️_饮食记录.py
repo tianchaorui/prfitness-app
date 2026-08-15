@@ -1,9 +1,10 @@
-"""🍽️ 饮食记录 - 卡路里追踪"""
+"""🍽️ 饮食记录 - 卡路里追踪 + AI 拍照识别"""
 import streamlit as st
 from datetime import datetime
 
 from core.feishu_client import get_feishu_client
 from core.config import get_config
+from core.food_analyzer import FoodAnalyzer
 
 
 st.title("🍽️ 饮食记录")
@@ -47,6 +48,66 @@ st.markdown("---")
 # 记录一餐
 st.markdown("### ➕ 记录一餐")
 
+# ============ 拍照识别区 ============
+with st.expander("📸 **AI 拍照识别食物**（推荐：又快又准）", expanded=False):
+    st.caption("上传一张食物照片，AI 自动识别食物、估算重量和营养。识别结果会**自动填入下方表单**，你可以再微调。")
+
+    food_image = st.file_uploader(
+        "选择食物照片",
+        type=["jpg", "jpeg", "png"],
+        key="food_image",
+    )
+    if food_image:
+        st.image(food_image, caption="食物照片", width='stretch')
+
+    user_goal = st.text_input(
+        "你的目标（影响建议方向）",
+        value=st.session_state.get("user_profile", {}).get("目标", "保持"),
+        placeholder="例如：减脂 / 增肌 / 保持",
+        key="ai_user_goal",
+    )
+
+    if st.button("🤖 AI 识别卡路里", width='stretch', disabled=not food_image):
+        if not food_image:
+            st.error("请先上传一张食物照片")
+        else:
+            with st.spinner("🤖 AI 正在识别食物和营养..."):
+                try:
+                    analyzer = FoodAnalyzer()
+                    img_bytes = food_image.read()
+                    result = analyzer.analyze_food(img_bytes, user_goal=user_goal)
+                    if result is None:
+                        st.error("❌ 识别失败：AI 返回内容无法解析，请重试或改用下方手动输入")
+                    elif not result.get("food_items"):
+                        st.warning("⚠️ AI 没识别到明确食物。试试换个角度、保证光线充足再拍")
+                    else:
+                        # 把结果写进 session_state，让下方表单能取到
+                        st.session_state.ai_food_result = result
+                        st.success(f"✅ 识别到 {len(result['food_items'])} 项食物")
+                except Exception as e:
+                    st.error(f"❌ 识别失败：{e}")
+
+    # 展示识别结果（如果有）
+    ai_result = st.session_state.get("ai_food_result")
+    if ai_result and ai_result.get("food_items"):
+        st.markdown("**识别结果**：")
+        for item in ai_result["food_items"]:
+            st.markdown(
+                f"- {item['name']}：约 **{item['estimated_weight_g']:.0f} g**，"
+                f"**{item['calories']:.0f} kcal**"
+            )
+        st.markdown(
+            f"**总计**：{ai_result['total_calories']:.0f} kcal ｜ "
+            f"蛋白质 {ai_result['total_protein_g']:.0f} g ｜ "
+            f"碳水 {ai_result['total_carbs_g']:.0f} g ｜ "
+            f"脂肪 {ai_result['total_fat_g']:.0f} g"
+        )
+        if ai_result.get("health_assessment"):
+            st.info(f"💚 健康度：{ai_result['health_assessment']}")
+        if ai_result.get("suggestion"):
+            st.info(f"💡 建议：{ai_result['suggestion']}")
+
+# ============ 手动记录表单（AI 识别结果会自动填入这里）============
 with st.form("meal_form"):
     col_a, col_b = st.columns(2)
     with col_a:
@@ -54,17 +115,44 @@ with st.form("meal_form"):
     with col_b:
         record_date = st.date_input("日期", datetime.now())
 
-    food = st.text_input("食物描述", placeholder="例如：鸡胸肉 100g + 糙米饭 150g")
+    # 如果有 AI 识别结果，用它预填；否则为空
+    ai_prefill = st.session_state.get("ai_food_result", {}) or {}
+
+    # 食物描述：把 AI 识别的食物名拼起来
+    ai_items = ai_prefill.get("food_items", [])
+    ai_food_text = "、".join(item["name"] for item in ai_items) if ai_items else ""
+
+    food = st.text_input(
+        "食物描述",
+        value=ai_food_text,
+        placeholder="例如：鸡胸肉 100g + 糙米饭 150g",
+    )
 
     col_c, col_d, col_e, col_f = st.columns(4)
     with col_c:
-        calories = st.number_input("卡路里 (kcal)", 0, 3000, 0, step=50)
+        calories = st.number_input(
+            "卡路里 (kcal)", 0, 3000,
+            int(ai_prefill.get("total_calories", 0) or 0),
+            step=50,
+        )
     with col_d:
-        protein = st.number_input("蛋白质 (g)", 0, 200, 0, step=5)
+        protein = st.number_input(
+            "蛋白质 (g)", 0, 200,
+            int(ai_prefill.get("total_protein_g", 0) or 0),
+            step=5,
+        )
     with col_e:
-        carbs = st.number_input("碳水 (g)", 0, 500, 0, step=10)
+        carbs = st.number_input(
+            "碳水 (g)", 0, 500,
+            int(ai_prefill.get("total_carbs_g", 0) or 0),
+            step=10,
+        )
     with col_f:
-        fat = st.number_input("脂肪 (g)", 0, 200, 0, step=5)
+        fat = st.number_input(
+            "脂肪 (g)", 0, 200,
+            int(ai_prefill.get("total_fat_g", 0) or 0),
+            step=5,
+        )
 
     note = st.text_input("备注", placeholder="例如：练后餐 / 嘴馋...")
 
@@ -77,7 +165,7 @@ with st.form("meal_form"):
             # 本地显示结果
             st.success(f"✅ 已记录（{meal_type}：{food}，{calories} kcal）")
             st.balloons()
-            
+
             # 尝试保存到飞书（如果配置了）
             if has_feishu:
                 try:
@@ -99,6 +187,9 @@ with st.form("meal_form"):
                     st.warning(f"💾 本地记录成功，但飞书同步失败（{str(e)[:50]}）")
                     st.error(f"记录失败：{e}")
 
+            # 清掉 AI 预填状态，避免下一次记录被错误预填
+            st.session_state.ai_food_result = None
+
 # 今日明细
 st.markdown("---")
 st.markdown("### 📋 今日明细")
@@ -114,19 +205,6 @@ if today_records:
                 st.markdown(f"- **备注**: {fields.get('备注')}")
 else:
     st.info("还没有记录，去填一填吧")
-
-# 后续扩展
-with st.expander("🔮 未来扩展：拍照识别食物"):
-    st.markdown(
-        """
-        - 上传食物照片
-        - AI 自动识别食物种类和重量
-        - 自动估算卡路里和营养成分
-        - 结合身体状态给个性化建议
-
-        **已规划在 v2 版本，需要配置 DeepSeek-Vision**
-        """
-    )
 
 # 食物卡路里速查
 with st.expander("📚 常见食物卡路里速查"):
