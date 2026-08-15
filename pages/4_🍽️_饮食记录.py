@@ -68,7 +68,7 @@ with st.form("meal_form"):
 
     note = st.text_input("备注", placeholder="例如：练后餐 / 嘴馋...")
 
-    submitted = st.form_submit_button("✅ 记录", use_container_width=True)
+    submitted = st.form_submit_button("✅ 记录", width='stretch')
 
     if submitted:
         if not food:

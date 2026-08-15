@@ -129,7 +129,7 @@ st.markdown("---")
 st.markdown("### 🤖 AI 月度报告")
 st.caption("基于近 30 天数据生成")
 
-if st.button("📝 生成月报", use_container_width=True):
+if st.button("📝 生成月报", width='stretch'):
     ai = get_ai_client()
     if not ai:
         st.error("DEEPSEEK_API_KEY 未配置")
@@ -193,7 +193,7 @@ with st.expander("📥 导出我的数据"):
         data=csv,
         file_name=f"fitness_data_{datetime.now().strftime('%Y%m%d')}.csv",
         mime="text/csv",
-        use_container_width=True,
+        width='stretch',
     )
 
 # 使用统计

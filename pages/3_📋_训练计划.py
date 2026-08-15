@@ -39,7 +39,7 @@ if profile:
     has_feishu = feishu is not None and bool(get_config("FEISHU_TABLE_WORKOUT"))
     
     if has_feishu:
-        if st.button("💾 保存到飞书", use_container_width=True):
+        if st.button("💾 保存到飞书", width='stretch'):
             try:
                 feishu_id = generator.save_to_feishu(profile, plan_text)
                 if feishu_id:
@@ -57,7 +57,7 @@ if profile:
         data=plan_text.encode("utf-8"),
         file_name=f"训练计划_{profile['goal']}.md",
         mime="text/markdown",
-        use_container_width=True,
+        width='stretch',
     )
 
 # 显示之前的结果（如果用户切回来）

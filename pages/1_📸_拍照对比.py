@@ -25,7 +25,7 @@ with col1:
         help="建议 1-3 个月前的照片",
     )
     if old_photo:
-        st.image(old_photo, caption="旧照片", use_container_width=True)
+        st.image(old_photo, caption="旧照片", width='stretch')
 
 with col2:
     st.markdown("### 2️⃣ 上传新照片")
@@ -35,7 +35,7 @@ with col2:
         key="new_photo",
     )
     if new_photo:
-        st.image(new_photo, caption="新照片", use_container_width=True)
+        st.image(new_photo, caption="新照片", width='stretch')
 
 # 间隔天数
 st.markdown("### 3️⃣ 设置对比间隔")
@@ -57,7 +57,7 @@ with st.expander("📝 添加用户背景（可选，让 AI 更精准）"):
 
 # 分析按钮
 st.markdown("---")
-if st.button("🔍 开始 AI 对比分析", type="primary", use_container_width=True):
+if st.button("🔍 开始 AI 对比分析", type="primary", width='stretch'):
     if not old_photo or not new_photo:
         st.error("请先上传两张照片")
         st.stop()
@@ -136,7 +136,7 @@ if st.button("🔍 开始 AI 对比分析", type="primary", use_container_width=
             col_save1, col_save2 = st.columns(2)
             with col_save1:
                 if has_feishu:
-                    if st.button("💾 保存分析到飞书", use_container_width=True):
+                    if st.button("💾 保存分析到飞书", width='stretch'):
                         with st.spinner("保存中..."):
                             try:
                                 record_id = analyzer.save_to_feishu(
@@ -180,7 +180,7 @@ if st.button("🔍 开始 AI 对比分析", type="primary", use_container_width=
                     data=report_text.encode("utf-8"),
                     file_name=f"对比报告_{datetime.now().strftime('%Y%m%d')}.md",
                     mime="text/markdown",
-                    use_container_width=True,
+                    width='stretch',
                 )
 
         except Exception as e:

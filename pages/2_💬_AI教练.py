@@ -41,7 +41,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### 🗑️ 管理")
-    if st.button("清空对话", use_container_width=True):
+    if st.button("清空对话", width='stretch'):
         st.session_state.messages = []
         st.rerun()
 
@@ -92,6 +92,6 @@ if not st.session_state.messages:
 
     for i, q in enumerate(sample_questions):
         col = col1 if i % 2 == 0 else col2
-        if col.button(q, key=f"sample_{i}", use_container_width=True):
+        if col.button(q, key=f"sample_{i}", width='stretch'):
             st.session_state.messages.append({"role": "user", "content": q})
             st.rerun()

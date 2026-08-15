@@ -109,7 +109,7 @@ def render_plan_form() -> Optional[Dict]:
             placeholder="例如：左膝有伤、不能深蹲；海鲜过敏...",
         )
 
-        submitted = st.form_submit_button("🎯 生成我的周计划", use_container_width=True)
+        submitted = st.form_submit_button("🎯 生成我的周计划", width='stretch')
 
         if submitted:
             # 借鉴 quantum-fit 的 BMI 显示
