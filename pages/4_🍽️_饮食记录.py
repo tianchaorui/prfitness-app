@@ -97,7 +97,7 @@ with st.form("meal_form"):
                     st.info(f"📚 已同步到飞书（记录ID: {record_id}）")
                 except Exception as e:
                     st.warning(f"💾 本地记录成功，但飞书同步失败（{str(e)[:50]}）")
-                st.error(f"记录失败：{e}")
+                    st.error(f"记录失败：{e}")
 
 # 今日明细
 st.markdown("---")

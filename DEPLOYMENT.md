@@ -51,10 +51,20 @@ git push -u origin main
 2. 在 **"Secrets"** 部分粘贴：
 
 ```toml
-# DeepSeek API
-DEEPSEEK_API_KEY = "sk-clesioplbfktnwvgaqlmlypppsypynunzxodlnahdituiudfv"
-DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-DEEPSEEK_MODEL = "deepseek-chat"
+# 硅基流动 SiliconFlow（提供视觉能力）
+DEEPSEEK_API_KEY = "你的硅基流动 API key"
+DEEPSEEK_BASE_URL = "https://api.siliconflow.cn/v1"
+DEEPSEEK_MODEL = "Qwen/Qwen3-VL-32B-Instruct"
+
+# 飞书（可选）
+# FEISHU_APP_ID = "..."
+# FEISHU_APP_SECRET = "..."
+# FEISHU_APP_TOKEN = "..."
+# FEISHU_TABLE_BODY = "..."
+# FEISHU_TABLE_WORKOUT = "..."
+# FEISHU_TABLE_MEAL = "..."
+# FEISHU_TABLE_CONVERSATION = "..."
+# FEISHU_TABLE_PROFILE = "..."
 ```
 
 3. 点击 **"Deploy"**

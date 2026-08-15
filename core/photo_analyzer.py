@@ -73,15 +73,28 @@ class PhotoAnalyzer:
         # 解析 Vision 返回的 JSON
         import json
         import re
+        
+        # 清理响应文本（移除代码块标记）
+        cleaned = response.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]  # 移除 ```json
+        if cleaned.startswith("```"):
+            cleaned = cleaned[3:]  # 移除 ```
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]  # 移除尾部 ```
+        cleaned = cleaned.strip()
+
         try:
-            return json.loads(response)
+            return json.loads(cleaned)
         except json.JSONDecodeError:
-            match = re.search(r'\{.*\}', response, re.DOTALL)
+            match = re.search(r'\{.*\}', cleaned, re.DOTALL)
             if match:
                 try:
                     return json.loads(match.group(0))
                 except json.JSONDecodeError:
                     pass
+        
+        print(f"JSON 解析失败。原始响应：{response[:200]}")
         return None
 
     def compare_two(
@@ -128,15 +141,29 @@ class PhotoAnalyzer:
         import json
         import re
 
+        # 清理响应文本（移除代码块标记）
+        cleaned = response_text.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]  # 移除 ```json
+        if cleaned.startswith("```"):
+            cleaned = cleaned[3:]  # 移除 ```
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]  # 移除尾部 ```
+        cleaned = cleaned.strip()
+
         try:
-            return json.loads(response_text)
+            return json.loads(cleaned)
         except json.JSONDecodeError:
-            match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            # 尝试用正则表达式提取 JSON 对象
+            match = re.search(r'\{.*\}', cleaned, re.DOTALL)
             if match:
                 try:
                     return json.loads(match.group(0))
                 except json.JSONDecodeError:
                     pass
+        
+        # 如果都失败了，返回 None
+        print(f"JSON 解析失败。原始响应：{response_text[:200]}")
         return None
 
     def save_to_feishu(
