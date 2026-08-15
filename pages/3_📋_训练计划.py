@@ -1,0 +1,67 @@
+"""📋 训练计划 - 借鉴 quantum-fit 的核心页面"""
+import streamlit as st
+
+from core.plan_generator import PlanGenerator, render_plan_form, render_plan_result
+from core.config import show_config_status
+
+
+st.title("📋 AI 训练计划")
+st.markdown("**输入档案 → 生成个性化周计划**")
+
+if not show_config_status():
+    st.warning("DEEPSEEK_API_KEY 未配置，无法使用")
+
+# 缓存上次的结果
+if "last_plan" not in st.session_state:
+    st.session_state.last_plan = None
+if "last_profile" not in st.session_state:
+    st.session_state.last_profile = None
+
+# 表单
+profile = render_plan_form()
+
+# 生成计划
+if profile:
+    generator = PlanGenerator()
+    with st.spinner("🤖 AI 教练正在为你定制周计划..."):
+        plan_text = generator.generate(profile)
+
+    st.session_state.last_plan = plan_text
+    st.session_state.last_profile = profile
+
+    # 显示
+    render_plan_result(plan_text)
+
+    # 保存按钮
+    if st.button("💾 保存到飞书", use_container_width=True):
+        feishu_id = generator.save_to_feishu(profile, plan_text)
+        if feishu_id:
+            st.success(f"✅ 已保存到飞书（记录ID: {feishu_id}）")
+        else:
+            st.warning("飞书未配置或保存失败")
+
+    # 下载
+    st.download_button(
+        "📄 下载计划",
+        data=plan_text.encode("utf-8"),
+        file_name=f"训练计划_{profile['goal']}.md",
+        mime="text/markdown",
+        use_container_width=True,
+    )
+
+# 显示之前的结果（如果用户切回来）
+elif st.session_state.last_plan:
+    st.markdown("---")
+    st.markdown("### 📋 之前的计划")
+    render_plan_result(st.session_state.last_plan)
+
+st.markdown("---")
+with st.expander("💡 计划生成说明"):
+    st.markdown(
+        """
+        - 计划根据你的**身高、体重、年龄、性别**个性化生成
+        - 包含**周训练 + 营养 + 补剂 + 安全**建议
+        - 建议每周重新生成一次，根据进度调整
+        - 配合「我的数据」页面追踪效果最佳
+        """
+    )
