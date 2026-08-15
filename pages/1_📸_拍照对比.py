@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from core.photo_analyzer import PhotoAnalyzer
 from core.feishu_client import get_feishu_client
-from core.config import FEISHU_TABLES
+from core.config import get_config, show_config_status
 
 
 st.title("📸 身材对比分析")
@@ -12,7 +12,7 @@ st.markdown("**核心功能**：上传两张身材照，AI 自动对比变化，
 
 # 检查飞书配置（仅在需要时）
 feishu = get_feishu_client()
-has_feishu = feishu is not None and FEISHU_TABLES.get("body_records")
+has_feishu = feishu is not None and bool(get_config("FEISHU_TABLE_BODY"))
 
 col1, col2 = st.columns([1, 1])
 

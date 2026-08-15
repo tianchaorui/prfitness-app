@@ -2,7 +2,7 @@
 import streamlit as st
 
 from core.plan_generator import PlanGenerator, render_plan_form, render_plan_result
-from core.config import show_config_status
+from core.config import show_config_status, get_config
 
 
 st.title("📋 AI 训练计划")
@@ -34,10 +34,9 @@ if profile:
 
     # 保存按钮（仅在飞书配置完整时显示）
     from core.feishu_client import get_feishu_client
-    from core.config import FEISHU_TABLES
     
     feishu = get_feishu_client()
-    has_feishu = feishu is not None and FEISHU_TABLES.get("workout_logs")
+    has_feishu = feishu is not None and bool(get_config("FEISHU_TABLE_WORKOUT"))
     
     if has_feishu:
         if st.button("💾 保存到飞书", use_container_width=True):

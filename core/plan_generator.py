@@ -11,7 +11,6 @@ import streamlit as st
 from core.ai_client import get_ai_client
 from core.prompts import PLAN_GENERATION_PROMPT
 from core.feishu_client import get_feishu_client
-from core.config import FEISHU_TABLES
 
 
 class PlanGenerator:
@@ -56,12 +55,15 @@ class PlanGenerator:
 
     def save_to_feishu(self, profile: Dict, plan_text: str) -> Optional[str]:
         """保存计划到飞书"""
-        if not self.feishu or not FEISHU_TABLES.get("workout_logs"):
+        from core.config import get_config
+        
+        workout_table_id = get_config("FEISHU_TABLE_WORKOUT")
+        if not self.feishu or not workout_table_id:
             return None
         try:
             from datetime import datetime
             record_id = self.feishu.add_record(
-                FEISHU_TABLES["workout_logs"],
+                workout_table_id,
                 {
                     "日期": int(datetime.now().timestamp() * 1000),  # 飞书 Date 字段是毫秒时间戳
                     "训练类型": "AI 计划",

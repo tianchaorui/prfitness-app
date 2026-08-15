@@ -3,14 +3,14 @@ import streamlit as st
 from datetime import datetime
 
 from core.feishu_client import get_feishu_client
-from core.config import FEISHU_TABLES
+from core.config import get_config
 
 
 st.title("🍽️ 饮食记录")
 st.markdown("**每日饮食追踪 + 卡路里管理**")
 
 feishu = get_feishu_client()
-has_feishu = feishu is not None and FEISHU_TABLES.get("meal_logs")
+has_feishu = feishu is not None and bool(get_config("FEISHU_TABLE_MEAL"))
 
 if not has_feishu:
     st.info("💡 提示：配置飞书后可将饮食记录保存到飞书表格，实现跨设备同步")
@@ -82,7 +82,7 @@ with st.form("meal_form"):
             if has_feishu:
                 try:
                     record_id = feishu.add_record(
-                        FEISHU_TABLES["meal_logs"],
+                        get_config("FEISHU_TABLE_MEAL"),
                         {
                             "日期": int(datetime.combine(record_date, datetime.min.time()).timestamp() * 1000),
                             "餐次": meal_type,

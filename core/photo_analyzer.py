@@ -13,7 +13,6 @@ import io
 from core.ai_client import get_ai_client
 from core.prompts import PHOTO_COMPARE_PROMPT, PHOTO_SINGLE_ANALYZE_PROMPT
 from core.feishu_client import get_feishu_client
-from core.config import FEISHU_TABLES
 
 
 class PhotoAnalyzer:
@@ -70,7 +69,20 @@ class PhotoAnalyzer:
             temperature=0.5,
             max_tokens=1500,
         )
-        return self.ai.chat_json(prompt)
+        
+        # 解析 Vision 返回的 JSON
+        import json
+        import re
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            match = re.search(r'\{.*\}', response, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    pass
+        return None
 
     def compare_two(
         self,
@@ -112,10 +124,7 @@ class PhotoAnalyzer:
             max_tokens=2000,
         )
 
-        # 解析 JSON
-        result = self.ai.chat_json(text_prompt)
-        # 上面的 chat_json 会再调一次纯文本接口，应该用直接解析
-        # 修正：直接解析 response_text
+        # 解析 Vision 返回的 JSON
         import json
         import re
 
@@ -128,7 +137,7 @@ class PhotoAnalyzer:
                     return json.loads(match.group(0))
                 except json.JSONDecodeError:
                     pass
-            return None
+        return None
 
     def save_to_feishu(
         self,
@@ -137,7 +146,10 @@ class PhotoAnalyzer:
         note: str = "",
     ) -> Optional[str]:
         """保存分析结果到飞书"""
-        if not self.feishu or not FEISHU_TABLES["body_records"]:
+        from core.config import get_config
+        
+        body_table_id = get_config("FEISHU_TABLE_BODY")
+        if not self.feishu or not body_table_id:
             return None
         try:
             from datetime import datetime
@@ -146,7 +158,7 @@ class PhotoAnalyzer:
 
             # 保存记录
             record_id = self.feishu.add_record(
-                FEISHU_TABLES["body_records"],
+                body_table_id,
                 {
                     "日期": int(datetime.now().timestamp() * 1000),
                     "今日照片": [{"file_token": file_token}],

@@ -112,16 +112,17 @@ class FitnessRAG:
     def save_conversation(self, role: str, content: str, session_id: str = "default") -> Optional[str]:
         """保存对话到飞书"""
         from core.feishu_client import get_feishu_client
-        from core.config import FEISHU_TABLES
+        from core.config import get_config
         from datetime import datetime
 
+        conversation_table_id = get_config("FEISHU_TABLE_CONVERSATION")
         feishu = get_feishu_client()
-        if not feishu or not FEISHU_TABLES.get("ai_conversations"):
+        if not feishu or not conversation_table_id:
             return None
 
         try:
             record_id = feishu.add_record(
-                FEISHU_TABLES["ai_conversations"],
+                conversation_table_id,
                 {
                     "时间": int(datetime.now().timestamp() * 1000),
                     "角色": role,
