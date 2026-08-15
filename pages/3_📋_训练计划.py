@@ -32,13 +32,25 @@ if profile:
     # 显示
     render_plan_result(plan_text)
 
-    # 保存按钮
-    if st.button("💾 保存到飞书", use_container_width=True):
-        feishu_id = generator.save_to_feishu(profile, plan_text)
-        if feishu_id:
-            st.success(f"✅ 已保存到飞书（记录ID: {feishu_id}）")
-        else:
-            st.warning("飞书未配置或保存失败")
+    # 保存按钮（仅在飞书配置完整时显示）
+    from core.feishu_client import get_feishu_client
+    from core.config import FEISHU_TABLES
+    
+    feishu = get_feishu_client()
+    has_feishu = feishu is not None and FEISHU_TABLES.get("workout_logs")
+    
+    if has_feishu:
+        if st.button("💾 保存到飞书", use_container_width=True):
+            try:
+                feishu_id = generator.save_to_feishu(profile, plan_text)
+                if feishu_id:
+                    st.success(f"✅ 已保存到飞书（记录ID: {feishu_id}）")
+                else:
+                    st.error("保存失败，请检查飞书配置")
+            except Exception as e:
+                st.error(f"保存失败：{str(e)}")
+    else:
+        st.info("💡 提示：配置飞书后可保存计划到飞书表格")
 
     # 下载
     st.download_button(

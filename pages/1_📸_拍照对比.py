@@ -4,14 +4,15 @@ from datetime import datetime, timedelta
 
 from core.photo_analyzer import PhotoAnalyzer
 from core.feishu_client import get_feishu_client
-from core.config import FEISHU_TABLES, show_config_status
+from core.config import FEISHU_TABLES
 
 
 st.title("📸 身材对比分析")
 st.markdown("**核心功能**：上传两张身材照，AI 自动对比变化，给出评分和改进建议")
 
-# 配置检查
+# 检查飞书配置（仅在需要时）
 feishu = get_feishu_client()
+has_feishu = feishu is not None and FEISHU_TABLES.get("body_records")
 
 col1, col2 = st.columns([1, 1])
 
@@ -130,24 +131,27 @@ if st.button("🔍 开始 AI 对比分析", type="primary", use_container_width=
                 for i, step in enumerate(next_steps, 1):
                     st.markdown(f"{i}. 📌 {step}")
 
-            # 保存按钮
+            # 保存按钮（仅在配置飞书时显示）
             st.markdown("---")
             col_save1, col_save2 = st.columns(2)
             with col_save1:
-                if st.button("💾 保存分析到飞书", use_container_width=True):
-                    if not feishu:
-                        st.error("飞书未配置，无法保存")
-                    else:
+                if has_feishu:
+                    if st.button("💾 保存分析到飞书", use_container_width=True):
                         with st.spinner("保存中..."):
-                            record_id = analyzer.save_to_feishu(
-                                image_bytes=new_bytes,
-                                analysis=result,
-                                note=user_context,
-                            )
-                            if record_id:
-                                st.success(f"✅ 已保存（记录ID: {record_id}）")
-                            else:
-                                st.error("保存失败")
+                            try:
+                                record_id = analyzer.save_to_feishu(
+                                    image_bytes=new_bytes,
+                                    analysis=result,
+                                    note=user_context,
+                                )
+                                if record_id:
+                                    st.success(f"✅ 已保存（记录ID: {record_id}）")
+                                else:
+                                    st.error("保存失败")
+                            except Exception as e:
+                                st.error(f"保存失败：{str(e)}")
+                else:
+                    st.info("💡 提示：配置飞书后可保存分析结果")
 
             with col_save2:
                 # 下载报告

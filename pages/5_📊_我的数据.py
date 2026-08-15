@@ -13,14 +13,22 @@ st.title("📊 我的数据")
 st.markdown("**所有进度一目了然**——体重、围度、AI 月报")
 
 feishu = get_feishu_client()
+has_feishu = feishu is not None and FEISHU_TABLES.get("body_records")
+
+if not has_feishu:
+    st.info(
+        "📌 **需要飞书配置才能查看数据**\n\n"
+        "请先在 `.env` 或 Streamlit Secrets 中配置飞书信息，"
+        "然后在飞书多维表格「身体记录」中添加数据。"
+    )
+    st.stop()
 
 # 读取身体记录
 records = []
-if feishu:
-    try:
-        records = feishu.get_body_records(limit=90)
-    except Exception as e:
-        st.error(f"读取失败：{e}")
+try:
+    records = feishu.get_body_records(limit=90)
+except Exception as e:
+    st.warning(f"读取数据失败：{str(e)[:100]}")
 
 if not records:
     st.info(

@@ -10,9 +10,10 @@ st.title("🍽️ 饮食记录")
 st.markdown("**每日饮食追踪 + 卡路里管理**")
 
 feishu = get_feishu_client()
+has_feishu = feishu is not None and FEISHU_TABLES.get("meal_logs")
 
-if not feishu:
-    st.warning("⚠️ 飞书未配置，饮食记录将无法保存。仍可输入查看效果。")
+if not has_feishu:
+    st.info("💡 提示：配置飞书后可将饮食记录保存到飞书表格，实现跨设备同步")
 
 # 今日统计
 st.markdown("### 📊 今日摄入")
@@ -20,11 +21,11 @@ col1, col2, col3, col4 = st.columns(4)
 
 # 从飞书读取今日记录
 today_records = []
-if feishu:
+if has_feishu:
     try:
         today_records = feishu.get_meal_records_today()
-    except Exception as e:
-        st.error(f"读取失败：{e}")
+    except Exception:
+        pass  # 静默失败，不影响用户体验
 
 # 计算今日总计
 total_cal = sum(r.get("fields", {}).get("卡路里", 0) or 0 for r in today_records)
@@ -72,26 +73,30 @@ with st.form("meal_form"):
     if submitted:
         if not food:
             st.error("请填写食物描述")
-        elif not feishu:
-            st.warning("飞书未配置，记录仅显示在页面上")
         else:
-            try:
-                record_id = feishu.add_record(
-                    FEISHU_TABLES["meal_logs"],
-                    {
-                        "日期": int(datetime.combine(record_date, datetime.min.time()).timestamp() * 1000),
-                        "餐次": meal_type,
-                        "食物": food,
-                        "卡路里": calories,
-                        "蛋白质(g)": protein,
-                        "碳水(g)": carbs,
-                        "脂肪(g)": fat,
-                        "备注": note,
-                    },
-                )
-                st.success(f"✅ 已记录（{meal_type}：{food}，{calories} kcal）")
-                st.balloons()
-            except Exception as e:
+            # 本地显示结果
+            st.success(f"✅ 已记录（{meal_type}：{food}，{calories} kcal）")
+            st.balloons()
+            
+            # 尝试保存到飞书（如果配置了）
+            if has_feishu:
+                try:
+                    record_id = feishu.add_record(
+                        FEISHU_TABLES["meal_logs"],
+                        {
+                            "日期": int(datetime.combine(record_date, datetime.min.time()).timestamp() * 1000),
+                            "餐次": meal_type,
+                            "食物": food,
+                            "卡路里": calories,
+                            "蛋白质(g)": protein,
+                            "碳水(g)": carbs,
+                            "脂肪(g)": fat,
+                            "备注": note,
+                        },
+                    )
+                    st.info(f"📚 已同步到飞书（记录ID: {record_id}）")
+                except Exception as e:
+                    st.warning(f"💾 本地记录成功，但飞书同步失败（{str(e)[:50]}）")
                 st.error(f"记录失败：{e}")
 
 # 今日明细
