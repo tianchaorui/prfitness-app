@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env", override=True)
 
 import streamlit as st
+import io
+import base64
+from PIL import Image
 
 from core.config import check_config, show_config_status
 
@@ -67,6 +70,97 @@ else:
         - ❌ 数据持久化（需要飞书配置）
         """
     )
+
+# ============= 诊断面板（看实际部署了什么）============
+with st.expander("🔍 **诊断面板**——看实际配置值（这里决定功能能不能用）", expanded=False):
+    from core.config import (
+        get_config, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL, DEEPSEEK_VISION_MODEL,
+        FEISHU_TABLES,
+    )
+    from core.ai_client import get_ai_client
+    from core.feishu_client import get_feishu_client
+
+    def mask(s: str, keep: int = 4) -> str:
+        if not s:
+            return "❌ 未配置"
+        return f"{s[:4]}...{s[-keep:]}" if len(s) > keep + 4 else "***"
+
+    st.markdown("**AI 配置**")
+    api_key = get_config("DEEPSEEK_API_KEY")
+    st.code(
+        f"DEEPSEEK_API_KEY      = {mask(api_key, 4)}\n"
+        f"DEEPSEEK_BASE_URL     = {DEEPSEEK_BASE_URL or '❌ 未配置'}\n"
+        f"DEEPSEEK_MODEL        = {DEEPSEEK_MODEL or '❌ 未配置'}\n"
+        f"DEEPSEEK_VISION_MODEL = {DEEPSEEK_VISION_MODEL or '❌ 未配置'}",
+        language="bash",
+    )
+
+    st.markdown("**飞书配置**")
+    st.code(
+        f"FEISHU_APP_ID         = {mask(get_config('FEISHU_APP_ID'), 4)}\n"
+        f"FEISHU_APP_SECRET     = {mask(get_config('FEISHU_APP_SECRET'), 0)}\n"
+        f"FEISHU_APP_TOKEN      = {mask(get_config('FEISHU_APP_TOKEN'), 4)}\n"
+        f"FEISHU_TABLE_BODY     = {FEISHU_TABLES.get('body_records') or '❌ 未配置'}",
+        language="bash",
+    )
+
+    st.markdown("**连通性测试**")
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        if st.button("🤖 测试 AI", width='stretch'):
+            with st.spinner(""):
+                try:
+                    client = get_ai_client()
+                    if not client:
+                        st.error("❌ AI 客户端未配置")
+                    else:
+                        r = client.chat(
+                            messages=[{"role": "user", "content": "ping"}],
+                            temperature=0.0,
+                            max_tokens=20,
+                        )
+                        if r.startswith("❌"):
+                            st.error(r)
+                        else:
+                            st.success(f"✅ AI 通：{r[:60]}")
+                except Exception as e:
+                    st.error(f"❌ {e}")
+    with col_b:
+        if st.button("👁️ 测试 Vision", width='stretch'):
+            with st.spinner(""):
+                try:
+                    client = get_ai_client()
+                    if not client:
+                        st.error("❌ AI 客户端未配置")
+                    else:
+                        # 1x1 红色像素
+                        tiny = Image.new("RGB", (1, 1), color=(255, 0, 0))
+                        buf = io.BytesIO(); tiny.save(buf, format="PNG")
+                        b64 = base64.b64encode(buf.getvalue()).decode()
+                        r = client.chat_with_vision(
+                            text="这张图什么颜色？只回答颜色名。",
+                            image_urls=[f"data:image/png;base64,{b64}"],
+                            temperature=0.0,
+                            max_tokens=10,
+                        )
+                        if r.startswith("❌"):
+                            st.error(r)
+                        else:
+                            st.success(f"✅ Vision 通：{r[:60]}")
+                except Exception as e:
+                    st.error(f"❌ {e}")
+    with col_c:
+        if st.button("📋 测试飞书", width='stretch'):
+            with st.spinner(""):
+                try:
+                    fc = get_feishu_client()
+                    if not fc:
+                        st.error("❌ 飞书未配置")
+                    else:
+                        items = fc.list_records(FEISHU_TABLES.get("body_records", ""), page_size=1)
+                        st.success(f"✅ 飞书通：拿到 {len(items)} 条样例")
+                except Exception as e:
+                    st.error(f"❌ {e}")
 
 st.markdown("---")
 
