@@ -89,6 +89,7 @@ class FeishuClient:
         if filter_dict:
             params["filter"] = json.dumps(filter_dict, ensure_ascii=False)
         # 按用户过滤：filter 用「用户」字段等于 user_id
+        # 如果表格没有「用户」字段，飞书会返回 InvalidFilter，此时回退为不过滤
         if user_id:
             user_filter = {
                 "logic": "OR",
@@ -109,6 +110,11 @@ class FeishuClient:
 
         resp = requests.get(url, headers=self._headers(), params=params)
         data = resp.json()
+        # InvalidFilter（1254018）= 表格没有「用户」字段，回退为不过滤
+        if data.get("code") == 1254018 and user_id:
+            params.pop("filter", None)
+            resp = requests.get(url, headers=self._headers(), params=params)
+            data = resp.json()
         if data.get("code") != 0:
             raise RuntimeError(f"飞书查询失败：{data}")
 
