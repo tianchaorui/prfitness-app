@@ -70,7 +70,6 @@ class TestGetAccessToken:
 class TestListRecords:
     def test_sends_correct_url_and_params(self):
         c = make_client()
-        c._access_token = "tok"
         fake = MagicMock()
         fake.json.return_value = {"code": 0, "data": {"items": [{"id": "r1"}]}}
         with patch.object(core.feishu_client.requests, "get", return_value=fake) as mock_get:
@@ -80,9 +79,38 @@ class TestListRecords:
         assert mock_get.call_args.kwargs["params"]["page_size"] == 50
         assert items == [{"id": "r1"}]
 
+    def test_translates_chinese_sort_keys_to_english(self):
+        """中文 sort 格式应翻译成飞书 API 要求的 field_name / desc。"""
+        import json
+        c = make_client()
+        fake = MagicMock()
+        fake.json.return_value = {"code": 0, "data": {"items": []}}
+        with patch.object(core.feishu_client.requests, "get", return_value=fake) as mock_get:
+            c.list_records(
+                "tbl_x",
+                sort=[{"字段名": "日期", "是否倒序": True}],
+                page_size=10,
+            )
+        sent_sort = json.loads(mock_get.call_args.kwargs["params"]["sort"])
+        assert sent_sort == [{"field_name": "日期", "desc": True}]
+
+    def test_accepts_english_sort_keys_passthrough(self):
+        """API 原生英文 key 也接受，原样转发。"""
+        import json
+        c = make_client()
+        fake = MagicMock()
+        fake.json.return_value = {"code": 0, "data": {"items": []}}
+        with patch.object(core.feishu_client.requests, "get", return_value=fake) as mock_get:
+            c.list_records(
+                "tbl_x",
+                sort=[{"field_name": "日期", "desc": False}],
+                page_size=10,
+            )
+        sent_sort = json.loads(mock_get.call_args.kwargs["params"]["sort"])
+        assert sent_sort == [{"field_name": "日期", "desc": False}]
+
     def test_raises_on_api_error(self):
         c = make_client()
-        c._access_token = "tok"
         fake = MagicMock()
         fake.json.return_value = {"code": 1, "msg": "bad"}
         with patch.object(core.feishu_client.requests, "get", return_value=fake):
@@ -115,6 +143,33 @@ class TestUploadFile:
         assert tok == "ft_xxx"
         # 上传必须用 multipart
         assert "files" in mock_post.call_args.kwargs
+
+
+class TestGetBodyRecords:
+    """get_body_records：飞书 API 的 sort 不可用，改客户端排序。"""
+
+    def test_sorts_client_side_descending_by_date(self):
+        c = make_client()
+        c.list_records = MagicMock(return_value=[
+            {"fields": {"日期": 1000}},
+            {"fields": {"日期": 3000}},
+            {"fields": {"日期": 2000}},
+        ])
+        items = c.get_body_records(limit=10)
+        dates = [item["fields"]["日期"] for item in items]
+        assert dates == [3000, 2000, 1000]
+
+    def test_handles_missing_date_field(self):
+        """缺日期字段的记录应该排到最后，不报错。"""
+        c = make_client()
+        c.list_records = MagicMock(return_value=[
+            {"fields": {"日期": 2000}},
+            {"fields": {"体重(kg)": 70}},  # 没日期
+            {"fields": {"日期": 1000}},
+        ])
+        items = c.get_body_records()
+        assert len(items) == 3
+        assert items[0]["fields"]["日期"] == 2000
 
 
 class TestGetMealRecordsToday:

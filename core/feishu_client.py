@@ -70,17 +70,22 @@ class FeishuClient:
 
         Args:
             table_id: 表格 ID
-            filter_dict: 过滤条件，如 {"逻辑运算": "AND", "条件": [...]}
-            sort: 排序，如 [{"字段名": "日期", "是否倒序": True}]
+            filter_dict: 过滤条件，如 {"logic": "AND", "conditions": [...]}
+            sort: 排序参数。接受两种格式：
+                  - 中文友好： [{"字段名": "日期", "是否倒序": True}]
+                  - API 原生：[{"field_name": "日期", "desc": True}]
+                  内部会统一翻译成 API 要求的格式。
         """
+        import json
+
         url = f"{BASE_URL}/bitable/v1/apps/{self.app_token}/tables/{table_id}/records"
-        params = {"page_size": page_size}
+        params: Dict[str, Any] = {"page_size": page_size}
         if view_id:
             params["view_id"] = view_id
         if sort:
-            params["sort"] = str(sort).replace("'", '"')
+            params["sort"] = json.dumps(self._normalize_sort(sort), ensure_ascii=False)
         if filter_dict:
-            params["filter"] = str(filter_dict).replace("'", '"')
+            params["filter"] = json.dumps(filter_dict, ensure_ascii=False)
 
         resp = requests.get(url, headers=self._headers(), params=params)
         data = resp.json()
@@ -89,6 +94,27 @@ class FeishuClient:
 
         items = data.get("data", {}).get("items", [])
         return items
+
+    @staticmethod
+    def _normalize_sort(sort: List[Dict]) -> List[Dict]:
+        """把中文友好格式的 sort 翻译成飞书 API 要求的英文 key。
+
+        输入： [{"字段名": "日期", "是否倒序": True}]
+        输出： [{"field_name": "日期", "desc": True}]
+        """
+        normalized = []
+        for item in sort:
+            if not isinstance(item, dict):
+                continue
+            field_name = item.get("field_name") or item.get("字段名")
+            if not field_name:
+                continue
+            # desc 优先；缺省值 False
+            desc = item.get("desc")
+            if desc is None:
+                desc = item.get("是否倒序", False)
+            normalized.append({"field_name": field_name, "desc": bool(desc)})
+        return normalized
 
     def add_record(self, table_id: str, fields: Dict) -> str:
         """新增一条记录
@@ -157,14 +183,18 @@ class FeishuClient:
 
     # ============= 便捷方法 =============
     def get_body_records(self, limit: int = 30) -> List[Dict]:
-        """获取身体记录列表（按日期倒序）"""
+        """获取身体记录列表（按日期倒序）。
+
+        注：飞书 bitable 的 sort 参数在这个 app 上始终返回 1254016 InvalidSort，
+        所以改为拉数据后在客户端排序。
+        """
         if not FEISHU_TABLES["body_records"]:
             return []
         items = self.list_records(
             FEISHU_TABLES["body_records"],
-            sort=[{"字段名": "日期", "是否倒序": True}],
             page_size=limit,
         )
+        items.sort(key=lambda x: x.get("fields", {}).get("日期", 0), reverse=True)
         return items
 
     def get_meal_records_today(self) -> List[Dict]:
@@ -176,7 +206,6 @@ class FeishuClient:
         # 简化：拿最近 50 条再过滤
         items = self.list_records(
             FEISHU_TABLES["meal_logs"],
-            sort=[{"字段名": "日期", "是否倒序": True}],
             page_size=50,
         )
         return [item for item in items if today in str(item.get("fields", {}).get("日期", ""))]
