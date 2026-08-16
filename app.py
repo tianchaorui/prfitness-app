@@ -112,7 +112,8 @@ with st.expander("🔍 **诊断面板**——看实际配置值（这里决定�
                 try:
                     client = get_ai_client()
                     if not client:
-                        st.error("❌ AI 客户端未配置")
+                        from core.ai_client import get_ai_last_error
+                        st.error(f"❌ AI 客户端未配置：{get_ai_last_error() or '未知原因'}")
                     else:
                         r = client.chat(
                             messages=[{"role": "user", "content": "ping"}],

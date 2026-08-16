@@ -13,15 +13,36 @@ st.markdown("**基于健身知识库的智能问答**——有上下文、能引
 show_config_status()
 
 # AI 配置预检：避免用户输入后才看到错误
-from core.ai_client import get_ai_client
-if not get_ai_client():
+from core.ai_client import get_ai_client, get_ai_last_error
+from core.config import get_config
+ai = get_ai_client()
+if not ai:
+    # 收集到底缺什么，给用户精确指引
+    missing = []
+    if not get_config("DEEPSEEK_API_KEY"):
+        missing.append("`DEEPSEEK_API_KEY`（缺 API key）")
+    if not get_config("DEEPSEEK_BASE_URL"):
+        missing.append("`DEEPSEEK_BASE_URL`")
+    if not get_config("DEEPSEEK_MODEL"):
+        missing.append("`DEEPSEEK_MODEL`")
+
+    last_err = get_ai_last_error()
+    error_detail = f"\n\n**初始化错误**：`{last_err}`" if last_err else ""
+
     st.error(
-        "❌ AI 客户端未配置。\n\n"
-        "请检查 Streamlit Cloud Secrets 是否设置了：\n"
-        "- `DEEPSEEK_API_KEY`（硅基流动 key）\n"
-        "- `DEEPSEEK_BASE_URL` = `https://api.siliconflow.cn/v1`\n"
-        "- `DEEPSEEK_MODEL` = `Qwen/Qwen2.5-7B-Instruct`\n\n"
-        "改完 Save 后会自动重启。"
+        f"❌ **AI 客户端未配置**\n\n"
+        f"{'以下变量未设置：' + chr(10).join('- ' + m for m in missing) if missing else '所有变量都有，但初始化失败，请看下面错误。'}"
+        f"{error_detail}\n\n"
+        f"**修复步骤**：\n"
+        f"1. 进 https://share.streamlit.io/ → 你的 app → ⚙️ Settings → Secrets\n"
+        f"2. 确保这 4 行都填了：\n"
+        f"```toml\n"
+        f'DEEPSEEK_API_KEY = "你的硅基流动 key"\n'
+        f'DEEPSEEK_BASE_URL = "https://api.siliconflow.cn/v1"\n'
+        f'DEEPSEEK_MODEL = "Qwen/Qwen2.5-7B-Instruct"\n'
+        f'DEEPSEEK_VISION_MODEL = "Qwen/Qwen3-VL-32B-Instruct"\n'
+        f"```\n"
+        f"3. Save → 等 30 秒自动重启 → 刷新页面"
     )
     st.stop()
 

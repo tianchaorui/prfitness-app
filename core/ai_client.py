@@ -127,14 +127,26 @@ class DeepSeekClient:
 
 # 全局单例
 _client: Optional[DeepSeekClient] = None
+_last_error: Optional[str] = None
 
 
 def get_ai_client() -> Optional[DeepSeekClient]:
-    """获取 AI 客户端单例（如果 key 未配置返回 None）"""
-    global _client
+    """获取 AI 客户端单例（如果 key 未配置返回 None）。
+
+    失败原因可通过 get_ai_last_error() 拿到，方便页面告诉用户具体缺什么。
+    """
+    global _client, _last_error
     if _client is None:
         try:
             _client = DeepSeekClient()
-        except ValueError:
+            _last_error = None  # 成功了清空
+        except Exception as e:
+            _last_error = f"{type(e).__name__}: {e}"
+            print(f"[AI Client] 初始化失败: {_last_error}", flush=True)
             return None
     return _client
+
+
+def get_ai_last_error() -> Optional[str]:
+    """最近一次 AI 客户端初始化失败的原因。成功时返回 None。"""
+    return _last_error

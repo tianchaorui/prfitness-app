@@ -74,7 +74,9 @@ def reset_singletons():
     import core.ai_client
     import core.feishu_client
     core.ai_client._client = None
+    core.ai_client._last_error = None
     core.feishu_client._client = None
     yield
     core.ai_client._client = None
+    core.ai_client._last_error = None
     core.feishu_client._client = None
