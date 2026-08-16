@@ -37,6 +37,9 @@ try:
         )
 except Exception as e:
     import traceback
+    # 把 traceback 同时打到 Streamlit Cloud 日志（方便远程排查）
+    print(f"[MyData] 读取飞书数据失败: {e}", flush=True)
+    traceback.print_exc()
     st.error(f"❌ 读取飞书数据失败：{e}")
     with st.expander("详细错误（排查用）"):
         st.code(traceback.format_exc())
