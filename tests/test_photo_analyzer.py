@@ -56,6 +56,28 @@ class TestResizeImageIfNeeded:
         # JPEG 文件以 ff d8 开头
         assert out[:2] == b"\xff\xd8"
 
+    def test_upsizes_too_small_image_to_min_28(self):
+        """Qwen3-VL 要求最小 28x28，过小的图应被放大。"""
+        from PIL import Image
+        import io
+        tiny = Image.new("RGB", (8, 8), color=(255, 0, 0))
+        buf = io.BytesIO(); tiny.save(buf, format="JPEG")
+        out = PhotoAnalyzer.resize_image_if_needed(buf.getvalue())
+        # 读回确认尺寸 ≥ 28
+        result = Image.open(io.BytesIO(out))
+        assert result.width >= 28 and result.height >= 28
+
+    def test_returns_unchanged_when_size_ok(self):
+        """32x32 < 4MB 的图应原样返回，不重新编码。"""
+        from PIL import Image
+        import io
+        img = Image.new("RGB", (32, 32), color=(120, 60, 60))
+        buf = io.BytesIO(); img.save(buf, format="JPEG")
+        original = buf.getvalue()
+        out = PhotoAnalyzer.resize_image_if_needed(original)
+        # 字节完全相同（不重新编码）
+        assert out == original
+
 
 class TestAnalyzeSingleJSONParsing:
     """针对 [photo_analyzer.py:73-98] 的 JSON 解析路径。"""

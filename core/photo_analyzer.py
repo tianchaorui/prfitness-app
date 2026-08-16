@@ -30,15 +30,30 @@ class PhotoAnalyzer:
 
     @staticmethod
     def resize_image_if_needed(file_bytes: bytes, max_size_mb: float = 4.0) -> bytes:
-        """如果图片太大，先压缩（DeepSeek API 限制图片大小）"""
-        size_mb = len(file_bytes) / (1024 * 1024)
-        if size_mb <= max_size_mb:
-            return file_bytes
+        """如果图片太大或太小，先调整（DeepSeek/Qwen VL 限制）。
 
+        - 大图：按比例缩到 ≤ max_size_mb
+        - 小图：放大到至少 28×28（Qwen3-VL 要求）
+        - 合适：原样返回（避免无谓的重编码）
+        """
         img = Image.open(io.BytesIO(file_bytes))
-        # 按比例缩放
-        ratio = (max_size_mb / size_mb) ** 0.5
-        new_size = (int(img.width * ratio), int(img.height * ratio))
+
+        # Qwen3-VL 等多模态模型要求最小 28x28，否则报 400
+        too_small = img.width < 28 or img.height < 28
+
+        # 大图压缩到 max_size_mb 以内
+        size_mb = len(file_bytes) / (1024 * 1024)
+        too_big = size_mb > max_size_mb
+
+        if not too_small and not too_big:
+            return file_bytes  # 大小都合适，直接返回原字节
+
+        if too_small:
+            ratio = max(28 / img.width, 28 / img.height)
+            new_size = (max(28, int(img.width * ratio)), max(28, int(img.height * ratio)))
+        else:  # too_big
+            ratio = (max_size_mb / size_mb) ** 0.5
+            new_size = (max(28, int(img.width * ratio)), max(28, int(img.height * ratio)))
         img = img.resize(new_size, Image.LANCZOS)
 
         # 保存为 JPEG（质量 85）
