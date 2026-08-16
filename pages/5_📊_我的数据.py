@@ -27,14 +27,21 @@ if not has_feishu:
 records = []
 try:
     records = feishu.get_body_records(limit=90)
+    if not records:
+        st.info(
+            "📌 **表里还没有数据**\n\n"
+            "可能原因：\n"
+            "- 多维表格「身体记录」里没有任何记录\n"
+            "- 飞书 app 没被授权读这张表（去飞书 UI 把 app 加为「可编辑」）\n"
+            "- APP_TOKEN / FEISHU_TABLE_BODY 填错了"
+        )
 except Exception as e:
-    st.warning(f"读取数据失败：{str(e)[:100]}")
+    import traceback
+    st.error(f"❌ 读取飞书数据失败：{e}")
+    with st.expander("详细错误（排查用）"):
+        st.code(traceback.format_exc())
 
 if not records:
-    st.info(
-        "📌 **还没有数据**\n\n"
-        "先去「拍照对比」页面记录第一条数据，或直接在飞书表格里手动添加。"
-    )
     st.stop()
 
 # 转成 DataFrame
