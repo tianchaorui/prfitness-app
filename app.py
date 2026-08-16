@@ -192,3 +192,15 @@ with st.expander("🔧 如何获取 API Key？"):
     )
 
 st.caption("💡 提示：第一次使用建议先去「训练计划」生成方案，体验完整流程")
+
+# 显示当前部署的 commit hash（方便确认线上版本）
+import subprocess
+try:
+    _commit = subprocess.check_output(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=str(Path(__file__).parent),
+        stderr=subprocess.DEVNULL,
+    ).decode().strip()
+except Exception:
+    _commit = "unknown"
+st.caption(f"🔖 当前部署版本：`{_commit}` | Streamlit Cloud 跑的不是这个？→ 看 Logs / 强制 Reboot")
