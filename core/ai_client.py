@@ -16,10 +16,12 @@ class DeepSeekClient:
         self.api_key = get_config("DEEPSEEK_API_KEY")
         self.base_url = get_config("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
         self.model = get_config("DEEPSEEK_MODEL", "deepseek-chat")
-        
+        # 视觉模型独立配置；未设时回落为 model（向后兼容）
+        self.vision_model = get_config("DEEPSEEK_VISION_MODEL", self.model)
+
         if not self.api_key:
             raise ValueError("DEEPSEEK_API_KEY 未配置")
-        
+
         self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
 
     def chat(
@@ -68,7 +70,7 @@ class DeepSeekClient:
 
         try:
             response = self.client.chat.completions.create(
-                model=self.model,
+                model=self.vision_model,  # 用专用视觉模型；未设时已回落为 model
                 messages=[{"role": "user", "content": content}],
                 temperature=temperature,
                 max_tokens=max_tokens,

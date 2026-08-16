@@ -51,10 +51,15 @@ git push -u origin main
 2. 在 **"Secrets"** 部分粘贴：
 
 ```toml
-# 硅基流动 SiliconFlow（提供视觉能力）
+# 硅基流动 SiliconFlow
 DEEPSEEK_API_KEY = "你的硅基流动 API key"
 DEEPSEEK_BASE_URL = "https://api.siliconflow.cn/v1"
-DEEPSEEK_MODEL = "Qwen/Qwen3-VL-32B-Instruct"
+
+# 文本模型（AI 私教 / 训练计划 / 月报）——便宜快
+DEEPSEEK_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+
+# 视觉模型（拍照对比 / 饮食识别）——不填会自动用上面的 DEEPSEEK_MODEL
+DEEPSEEK_VISION_MODEL = "Qwen/Qwen3-VL-32B-Instruct"
 
 # 飞书（可选）
 # FEISHU_APP_ID = "..."

@@ -11,13 +11,17 @@ import json
 from unittest.mock import patch, MagicMock, ANY
 
 
-def make_client(api_key="sk-test", base_url="https://x", model="m"):
-    """绕过构造函数直接造一个 DeepSeekClient。"""
+def make_client(api_key="sk-test", base_url="https://x", model="m", vision_model=None):
+    """绕过构造函数直接造一个 DeepSeekClient。
+
+    vision_model 默认等于 model（模拟「只配了文本模型」的兼容场景）。
+    """
     from core.ai_client import DeepSeekClient
     c = DeepSeekClient.__new__(DeepSeekClient)
     c.api_key = api_key
     c.base_url = base_url
     c.model = model
+    c.vision_model = vision_model if vision_model is not None else model
     c.client = MagicMock()
     return c
 
@@ -104,6 +108,36 @@ class TestChatWithVision:
         result = c.chat_with_vision(text="x", image_urls=["u"])
         assert result.startswith("❌")
         assert "401" in result
+
+    def test_uses_vision_model_when_set(self, monkeypatch):
+        """vision_model 配置了就用 vision_model，不用 text model。"""
+        from core.ai_client import DeepSeekClient
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-x")
+        monkeypatch.setenv("DEEPSEEK_MODEL", "text-model")
+        monkeypatch.setenv("DEEPSEEK_VISION_MODEL", "vision-model")
+        with patch("core.config.st") as mock_st:
+            mock_st.secrets = MagicMock()
+            mock_st.secrets.__contains__ = MagicMock(return_value=False)
+            with patch("core.ai_client.OpenAI"):
+                c = DeepSeekClient()
+            c.client.chat.completions.create.return_value.choices = [MagicMock(message=MagicMock(content="x"))]
+            c.chat_with_vision(text="看图", image_urls=["u"])
+        kwargs = c.client.chat.completions.create.call_args.kwargs
+        assert kwargs["model"] == "vision-model"
+
+    def test_vision_model_falls_back_to_text_model(self, monkeypatch):
+        """DEEPSEEK_VISION_MODEL 未设时，vision_model 应该回落到 model。"""
+        from core.ai_client import DeepSeekClient
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-x")
+        monkeypatch.setenv("DEEPSEEK_MODEL", "text-model")
+        monkeypatch.delenv("DEEPSEEK_VISION_MODEL", raising=False)
+        with patch("core.config.st") as mock_st:
+            mock_st.secrets = MagicMock()
+            mock_st.secrets.__contains__ = MagicMock(return_value=False)
+            with patch("core.ai_client.OpenAI"):
+                c = DeepSeekClient()
+        assert c.model == "text-model"
+        assert c.vision_model == "text-model"  # 自动回落
 
 
 class TestChatJson:

@@ -107,3 +107,35 @@ class TestShowConfigStatus:
             mock_st.secrets.__contains__ = MagicMock(return_value=False)
             result = show_config_status()
         assert result is True
+
+
+class TestVisionModelFallback:
+    """DEEPSEEK_VISION_MODEL 未设时回落到 DEEPSEEK_MODEL。
+
+    注：模块级常量 DEEPSEEK_VISION_MODEL 在 import 时固化，无法直接测试。
+    这里测试的是【fallback 逻辑】——通过 get_config() 的默认值参数验证。
+    这个默认值在 core/config.py 的写法是
+        DEEPSEEK_VISION_MODEL = get_config("DEEPSEEK_VISION_MODEL", DEEPSEEK_MODEL)
+    只要 DEEPSEEK_MODEL 本身有值，DEEPSEEK_VISION_MODEL 就至少等于它。
+    """
+
+    def test_get_config_falls_back_to_default_when_missing(self, monkeypatch):
+        """DEEPSEEK_VISION_MODEL 未设时，get_config 应返回调用方传的默认值。"""
+        monkeypatch.delenv("DEEPSEEK_VISION_MODEL", raising=False)
+        with patch("core.config.st") as mock_st:
+            mock_st.secrets = MagicMock()
+            mock_st.secrets.__contains__ = MagicMock(return_value=False)
+            from core.config import get_config
+            # 模拟 config.py 里的写法：vision 缺省时用 model 的值
+            result = get_config("DEEPSEEK_VISION_MODEL", "fallback-to-text-model")
+            assert result == "fallback-to-text-model"
+
+    def test_get_config_returns_env_when_set(self, monkeypatch):
+        """DEEPSEEK_VISION_MODEL 设了就返回它，不走 default。"""
+        monkeypatch.setenv("DEEPSEEK_VISION_MODEL", "explicit-vision-model")
+        with patch("core.config.st") as mock_st:
+            mock_st.secrets = MagicMock()
+            mock_st.secrets.__contains__ = MagicMock(return_value=False)
+            from core.config import get_config
+            result = get_config("DEEPSEEK_VISION_MODEL", "fallback")
+            assert result == "explicit-vision-model"

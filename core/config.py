@@ -36,6 +36,8 @@ def get_config(key: str, default: str = "") -> str:
 DEEPSEEK_API_KEY = get_config("DEEPSEEK_API_KEY")
 DEEPSEEK_BASE_URL = get_config("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL = get_config("DEEPSEEK_MODEL", "deepseek-chat")
+# 视觉模型：默认复用文本模型（向后兼容，老配置不动也照常工作）
+DEEPSEEK_VISION_MODEL = get_config("DEEPSEEK_VISION_MODEL", DEEPSEEK_MODEL)
 
 # ============= 飞书配置 =============
 FEISHU_APP_ID = get_config("FEISHU_APP_ID")
