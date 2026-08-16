@@ -4,7 +4,7 @@
 """
 from unittest.mock import MagicMock
 
-from core.plan_generator import parse_sections, PlanGenerator
+from core.plan_generator import parse_sections, PlanGenerator, extract_macro_targets
 
 
 class TestParseSections:
@@ -77,3 +77,51 @@ class TestGenerate:
         })
         prompt = ai.chat.call_args.kwargs["messages"][0]["content"]
         assert "无" in prompt  # 空 resources → "无"
+
+
+class TestExtractMacroTargets:
+    """extract_macro_targets：从 AI 输出中提取结构化宏量目标。"""
+
+    def test_extracts_json_block(self):
+        text = """Section 1
+---
+Section 2
+
+```json
+{
+  "daily_calories": 2200,
+  "daily_protein_g": 120,
+  "daily_carbs_g": 250,
+  "daily_fat_g": 70
+}
+```"""
+        result = extract_macro_targets(text)
+        assert result is not None
+        assert result["daily_calories"] == 2200
+        assert result["daily_protein_g"] == 120
+        assert result["daily_carbs_g"] == 250
+        assert result["daily_fat_g"] == 70
+
+    def test_extracts_bare_json(self):
+        text = 'some text {"daily_calories": 1800, "daily_protein_g": 100, "daily_carbs_g": 200, "daily_fat_g": 55} more text'
+        result = extract_macro_targets(text)
+        assert result is not None
+        assert result["daily_calories"] == 1800
+
+    def test_returns_none_when_no_json(self):
+        text = "只有一段文字，没有 JSON 块"
+        assert extract_macro_targets(text) is None
+
+    def test_returns_none_when_incomplete_json(self):
+        text = '```json\n{"daily_calories": 2000}\n```'
+        result = extract_macro_targets(text)
+        # 只有 calories 没有 protein 也应该返回（有 daily_calories 就够了）
+        assert result is not None
+        assert result["daily_calories"] == 2000
+        assert result["daily_protein_g"] == 0  # 缺省为 0
+
+    def test_handles_non_numeric_values(self):
+        text = '```json\n{"daily_calories": "两千", "daily_protein_g": 100, "daily_carbs_g": 200, "daily_fat_g": 50}\n```'
+        result = extract_macro_targets(text)
+        # "两千" 转 int 会失败，应该返回 None
+        assert result is None

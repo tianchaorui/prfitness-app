@@ -131,6 +131,50 @@ def parse_sections(text: str) -> List[str]:
     return [s.strip() for s in text.split("---") if s.strip()]
 
 
+def extract_macro_targets(plan_text: str) -> Optional[Dict]:
+    """从训练计划文本中提取结构化宏量目标（JSON 块）。
+
+    AI 在 prompt 要求下会在文末输出 ```json 块，包含：
+    daily_calories, daily_protein_g, daily_carbs_g, daily_fat_g
+
+    Returns:
+        {"daily_calories": 2200, "daily_protein_g": 120, ...} 或 None
+    """
+    import json
+    import re
+
+    # 尝试从 ```json ... ``` 块中提取
+    match = re.search(r'```json\s*(\{.*?\})\s*```', plan_text, re.DOTALL)
+    if match:
+        try:
+            data = json.loads(match.group(1))
+            if "daily_calories" in data or "daily_protein_g" in data:
+                return {
+                    "daily_calories": int(data.get("daily_calories", 0)),
+                    "daily_protein_g": int(data.get("daily_protein_g", 0)),
+                    "daily_carbs_g": int(data.get("daily_carbs_g", 0)),
+                    "daily_fat_g": int(data.get("daily_fat_g", 0)),
+                }
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # 兜底：尝试提取最后一个 { ... } 块
+    matches = list(re.finditer(r'\{[^{}]*"daily_calories"[^{}]*\}', plan_text, re.DOTALL))
+    if matches:
+        try:
+            data = json.loads(matches[-1].group(0))
+            return {
+                "daily_calories": int(data.get("daily_calories", 0)),
+                "daily_protein_g": int(data.get("daily_protein_g", 0)),
+                "daily_carbs_g": int(data.get("daily_carbs_g", 0)),
+                "daily_fat_g": int(data.get("daily_fat_g", 0)),
+            }
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    return None
+
+
 def render_plan_result(plan_text: str):
     """用 Tabs 展示计划（借鉴 quantum-fit）"""
     sections = parse_sections(plan_text)

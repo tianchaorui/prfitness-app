@@ -47,6 +47,28 @@ with col3:
 with col4:
     st.metric("🥑 脂肪", f"{total_fat:.0f} g")
 
+# 宏量目标进度条（从训练计划同步过来）
+macros = st.session_state.get("daily_macros")
+if macros and any(macros.values()):
+    st.markdown("### 🎯 今日目标进度")
+    targets = {
+        "🔥 热量": (total_cal, macros.get("daily_calories", 0), "kcal"),
+        "🥩 蛋白质": (total_protein, macros.get("daily_protein_g", 0), "g"),
+        "🍚 碳水": (total_carbs, macros.get("daily_carbs_g", 0), "g"),
+        "🥑 脂肪": (total_fat, macros.get("daily_fat_g", 0), "g"),
+    }
+    for label, (current, target, unit) in targets.items():
+        if target > 0:
+            pct = min(current / target, 1.5)
+            st.progress(pct, text=f"{label}：{current:.0f} / {target} {unit} ({pct*100:.0f}%)")
+    remaining_cal = macros.get("daily_calories", 0) - total_cal
+    if remaining_cal > 0:
+        st.info(f"💡 今日还可摄入 **{remaining_cal:.0f} kcal**")
+    else:
+        st.warning(f"⚠️ 已超出目标 **{abs(remaining_cal):.0f} kcal**")
+else:
+    st.caption("💡 去「训练计划」生成方案后，这里会显示每日营养目标进度")
+
 st.markdown("---")
 
 # 记录一餐

@@ -1,7 +1,7 @@
 """📋 训练计划 - 借鉴 quantum-fit 的核心页面"""
 import streamlit as st
 
-from core.plan_generator import PlanGenerator, render_plan_form, render_plan_result
+from core.plan_generator import PlanGenerator, render_plan_form, render_plan_result, extract_macro_targets
 from core.config import show_config_status, get_config
 from core.user import render_user_selector
 
@@ -35,6 +35,23 @@ if profile:
 
     # 显示
     render_plan_result(plan_text)
+
+    # 提取宏量目标 → 存 session_state（饮食记录页面读取）
+    macros = extract_macro_targets(plan_text)
+    if macros:
+        st.session_state.daily_macros = macros
+        st.markdown("---")
+        st.markdown("### 🎯 每日营养目标（已同步到饮食记录）")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("🔥 热量", f"{macros['daily_calories']} kcal")
+        with c2:
+            st.metric("🥩 蛋白质", f"{macros['daily_protein_g']} g")
+        with c3:
+            st.metric("🍚 碳水", f"{macros['daily_carbs_g']} g")
+        with c4:
+            st.metric("🥑 脂肪", f"{macros['daily_fat_g']} g")
+        st.info("💡 这些目标已自动同步到「饮食记录」页面，打卡时会显示进度条")
 
     # 保存按钮（仅在飞书配置完整时显示）
     from core.feishu_client import get_feishu_client
