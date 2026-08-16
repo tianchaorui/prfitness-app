@@ -195,10 +195,11 @@ class PhotoAnalyzer:
         image_bytes: bytes,
         analysis: Dict,
         note: str = "",
+        user_id: str = "",
     ) -> Optional[str]:
         """保存分析结果到飞书"""
         from core.config import get_config
-        
+
         body_table_id = get_config("FEISHU_TABLE_BODY")
         if not self.feishu or not body_table_id:
             return None
@@ -207,7 +208,7 @@ class PhotoAnalyzer:
             # 上传图片
             file_token = self.feishu.upload_file(image_bytes, f"body_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg")
 
-            # 保存记录
+            # 保存记录（带 user_id）
             record_id = self.feishu.add_record(
                 body_table_id,
                 {
@@ -215,6 +216,7 @@ class PhotoAnalyzer:
                     "今日照片": [{"file_token": file_token}],
                     "备注": f"AI 评分：{analysis.get('progress_score', 'N/A')}\n{note}",
                 },
+                user_id=user_id,
             )
             return record_id
         except Exception as e:

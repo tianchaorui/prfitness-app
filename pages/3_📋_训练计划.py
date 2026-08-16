@@ -3,10 +3,14 @@ import streamlit as st
 
 from core.plan_generator import PlanGenerator, render_plan_form, render_plan_result
 from core.config import show_config_status, get_config
+from core.user import render_user_selector
 
 
 st.title("📋 AI 训练计划")
 st.markdown("**输入档案 → 生成个性化周计划**")
+
+# 用户选择
+current_user = render_user_selector()
 
 if not show_config_status():
     st.warning("DEEPSEEK_API_KEY 未配置，无法使用")
@@ -41,7 +45,7 @@ if profile:
     if has_feishu:
         if st.button("💾 保存到飞书", width='stretch'):
             try:
-                feishu_id = generator.save_to_feishu(profile, plan_text)
+                feishu_id = generator.save_to_feishu(profile, plan_text, user_id=current_user)
                 if feishu_id:
                     st.success(f"✅ 已保存到飞书（记录ID: {feishu_id}）")
                 else:

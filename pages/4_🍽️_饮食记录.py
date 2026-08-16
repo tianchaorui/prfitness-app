@@ -5,10 +5,14 @@ from datetime import datetime
 from core.feishu_client import get_feishu_client
 from core.config import get_config
 from core.food_analyzer import FoodAnalyzer
+from core.user import render_user_selector
 
 
 st.title("🍽️ 饮食记录")
 st.markdown("**每日饮食追踪 + 卡路里管理**")
+
+# 用户选择
+current_user = render_user_selector()
 
 feishu = get_feishu_client()
 has_feishu = feishu is not None and bool(get_config("FEISHU_TABLE_MEAL"))
@@ -24,7 +28,7 @@ col1, col2, col3, col4 = st.columns(4)
 today_records = []
 if has_feishu:
     try:
-        today_records = feishu.get_meal_records_today()
+        today_records = feishu.get_meal_records_today(user_id=current_user)
     except Exception:
         pass  # 静默失败，不影响用户体验
 
@@ -181,6 +185,7 @@ with st.form("meal_form"):
                             "脂肪(g)": fat,
                             "备注": note,
                         },
+                        user_id=current_user,
                     )
                     st.info(f"📚 已同步到飞书（记录ID: {record_id}）")
                 except Exception as e:

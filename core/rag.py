@@ -109,7 +109,7 @@ class FitnessRAG:
             max_tokens=2000,
         )
 
-    def save_conversation(self, role: str, content: str, session_id: str = "default") -> Optional[str]:
+    def save_conversation(self, role: str, content: str, session_id: str = "default", user_id: str = "") -> Optional[str]:
         """保存对话到飞书"""
         from core.feishu_client import get_feishu_client
         from core.config import get_config
@@ -129,6 +129,7 @@ class FitnessRAG:
                     "会话ID": session_id,
                     "内容": content,
                 },
+                user_id=user_id,
             )
             return record_id
         except Exception as e:

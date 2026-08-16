@@ -4,10 +4,14 @@ import uuid
 
 from core.rag import FitnessRAG
 from core.config import show_config_status
+from core.user import render_user_selector
 
 
 st.title("💬 AI 私人教练")
 st.markdown("**基于健身知识库的智能问答**——有上下文、能引用、可保存")
+
+# 用户选择
+current_user = render_user_selector()
 
 # 配置检查（只检查可选的飞书配置）
 show_config_status()
@@ -111,8 +115,8 @@ if prompt := st.chat_input("问问你的健身问题..."):
     # 保存到飞书（异步，不阻塞）—— 只在 AI 真正回复成功时才保存
     if not response.startswith("❌"):
         try:
-            rag.save_conversation("user", prompt, st.session_state.session_id)
-            rag.save_conversation("assistant", response, st.session_state.session_id)
+            rag.save_conversation("user", prompt, st.session_state.session_id, user_id=current_user)
+            rag.save_conversation("assistant", response, st.session_state.session_id, user_id=current_user)
         except Exception:
             pass  # 保存失败不影响体验
 

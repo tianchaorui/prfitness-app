@@ -65,6 +65,7 @@ class FeishuClient:
         filter_dict: Optional[Dict] = None,
         sort: Optional[List[Dict]] = None,
         page_size: int = 100,
+        user_id: Optional[str] = None,
     ) -> List[Dict]:
         """列出记录
 
@@ -75,6 +76,7 @@ class FeishuClient:
                   - 中文友好： [{"字段名": "日期", "是否倒序": True}]
                   - API 原生：[{"field_name": "日期", "desc": True}]
                   内部会统一翻译成 API 要求的格式。
+            user_id: 用户名（按「用户」字段过滤，空值视为「我」）
         """
         import json
 
@@ -86,6 +88,24 @@ class FeishuClient:
             params["sort"] = json.dumps(self._normalize_sort(sort), ensure_ascii=False)
         if filter_dict:
             params["filter"] = json.dumps(filter_dict, ensure_ascii=False)
+        # 按用户过滤：filter 用「用户」字段等于 user_id
+        if user_id:
+            user_filter = {
+                "logic": "OR",
+                "conditions": [
+                    {"field_name": "用户", "operator": "is", "value": [user_id]},
+                    # 老数据（用户字段为空）默认归当前用户
+                    {"field_name": "用户", "operator": "isEmpty", "value": []},
+                ],
+            }
+            if "filter" in params:
+                # 已有 filter，AND 合并
+                params["filter"] = json.dumps(
+                    {"logic": "AND", "conditions": [json.loads(params["filter"]), user_filter]},
+                    ensure_ascii=False,
+                )
+            else:
+                params["filter"] = json.dumps(user_filter, ensure_ascii=False)
 
         resp = requests.get(url, headers=self._headers(), params=params)
         data = resp.json()
@@ -116,17 +136,21 @@ class FeishuClient:
             normalized.append({"field_name": field_name, "desc": bool(desc)})
         return normalized
 
-    def add_record(self, table_id: str, fields: Dict) -> str:
+    def add_record(self, table_id: str, fields: Dict, user_id: Optional[str] = None) -> str:
         """新增一条记录
 
         Args:
             table_id: 表格 ID
             fields: 字段 dict，key 是飞书表格的字段名
+            user_id: 用户名（写入「用户」字段做归属标识；已填则不覆盖）
 
         Returns:
             新记录的 record_id
         """
         url = f"{BASE_URL}/bitable/v1/apps/{self.app_token}/tables/{table_id}/records"
+        # 自动加 user_id 到「用户」字段（如果提供且没填过）
+        if user_id and "用户" not in fields:
+            fields = {**fields, "用户": user_id}
         resp = requests.post(
             url,
             headers=self._headers(),
@@ -182,7 +206,7 @@ class FeishuClient:
         return data["data"]["file_token"]
 
     # ============= 便捷方法 =============
-    def get_body_records(self, limit: int = 30) -> List[Dict]:
+    def get_body_records(self, limit: int = 30, user_id: Optional[str] = None) -> List[Dict]:
         """获取身体记录列表（按日期倒序）。
 
         注：飞书 bitable 的 sort 参数在这个 app 上始终返回 1254016 InvalidSort，
@@ -193,11 +217,12 @@ class FeishuClient:
         items = self.list_records(
             FEISHU_TABLES["body_records"],
             page_size=limit,
+            user_id=user_id,
         )
         items.sort(key=lambda x: x.get("fields", {}).get("日期", 0), reverse=True)
         return items
 
-    def get_meal_records_today(self) -> List[Dict]:
+    def get_meal_records_today(self, user_id: Optional[str] = None) -> List[Dict]:
         """获取今日饮食记录"""
         if not FEISHU_TABLES["meal_logs"]:
             return []
@@ -207,6 +232,7 @@ class FeishuClient:
         items = self.list_records(
             FEISHU_TABLES["meal_logs"],
             page_size=50,
+            user_id=user_id,
         )
         return [item for item in items if today in str(item.get("fields", {}).get("日期", ""))]
 

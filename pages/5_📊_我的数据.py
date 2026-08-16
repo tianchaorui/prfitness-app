@@ -7,10 +7,14 @@ from core.feishu_client import get_feishu_client
 from core.config import get_config
 from core.ai_client import get_ai_client
 from core.prompts import MONTHLY_REPORT_PROMPT
+from core.user import render_user_selector
 
 
 st.title("📊 我的数据")
 st.markdown("**所有进度一目了然**——体重、围度、AI 月报")
+
+# 用户选择
+current_user = render_user_selector()
 
 feishu = get_feishu_client()
 has_feishu = feishu is not None and bool(get_config("FEISHU_TABLE_BODY"))
@@ -26,7 +30,7 @@ if not has_feishu:
 # 读取身体记录
 records = []
 try:
-    records = feishu.get_body_records(limit=90)
+    records = feishu.get_body_records(limit=90, user_id=current_user)
     if not records:
         st.info(
             "📌 **表里还没有数据**\n\n"

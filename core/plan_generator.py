@@ -53,10 +53,10 @@ class PlanGenerator:
         )
         return response
 
-    def save_to_feishu(self, profile: Dict, plan_text: str) -> Optional[str]:
+    def save_to_feishu(self, profile: Dict, plan_text: str, user_id: str = "") -> Optional[str]:
         """保存计划到飞书"""
         from core.config import get_config
-        
+
         workout_table_id = get_config("FEISHU_TABLE_WORKOUT")
         if not self.feishu or not workout_table_id:
             return None
@@ -70,6 +70,7 @@ class PlanGenerator:
                     "动作记录": f"档案：{profile}\n\n{plan_text[:1000]}",
                     "强度感受": "适中",
                 },
+                user_id=user_id,
             )
             return record_id
         except Exception as e:

@@ -5,10 +5,14 @@ from datetime import datetime, timedelta
 from core.photo_analyzer import PhotoAnalyzer
 from core.feishu_client import get_feishu_client
 from core.config import get_config, show_config_status
+from core.user import render_user_selector
 
 
 st.title("📸 身材对比分析")
 st.markdown("**核心功能**：上传两张身材照，AI 自动对比变化，给出评分和改进建议")
+
+# 用户选择
+current_user = render_user_selector()
 
 # 检查飞书配置（仅在需要时）
 feishu = get_feishu_client()
@@ -143,6 +147,7 @@ if st.button("🔍 开始 AI 对比分析", type="primary", width='stretch'):
                                     image_bytes=new_bytes,
                                     analysis=result,
                                     note=user_context,
+                                    user_id=current_user,
                                 )
                                 if record_id:
                                     st.success(f"✅ 已保存（记录ID: {record_id}）")
