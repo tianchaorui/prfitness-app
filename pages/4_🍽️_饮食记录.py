@@ -49,7 +49,7 @@ with col4:
 
 # 宏量目标进度条（从训练计划同步过来）
 macros = st.session_state.get("daily_macros")
-if macros and any(macros.values()):
+if macros and any(v > 0 for v in macros.values()):
     st.markdown("### 🎯 今日目标进度")
     targets = {
         "🔥 热量": (total_cal, macros.get("daily_calories", 0), "kcal"),
@@ -60,7 +60,12 @@ if macros and any(macros.values()):
     for label, (current, target, unit) in targets.items():
         if target > 0:
             pct = min(current / target, 1.5)
-            st.progress(pct, text=f"{label}：{current:.0f} / {target} {unit} ({pct*100:.0f}%)")
+            try:
+                st.progress(pct, text=f"{label}：{current:.0f} / {target} {unit} ({pct*100:.0f}%)")
+            except TypeError:
+                # Streamlit < 1.33 不支持 text 参数
+                st.progress(pct)
+                st.caption(f"{label}：{current:.0f} / {target} {unit} ({pct*100:.0f}%)")
     remaining_cal = macros.get("daily_calories", 0) - total_cal
     if remaining_cal > 0:
         st.info(f"💡 今日还可摄入 **{remaining_cal:.0f} kcal**")

@@ -210,12 +210,21 @@ if feishu:
                 fields = r.get("fields", {})
                 photo_list = fields.get("今日照片", [])
                 if photo_list:
-                    # 飞书附件格式：[{file_token, name, ...}]
-                    # 实际访问需要调用下载接口，这里简化处理
                     date_str = ""
                     if fields.get("日期"):
-                        date_str = datetime.fromtimestamp(fields["日期"]/1000).strftime("%Y-%m-%d")
-                    cols[i % 4].markdown(f"📷 {date_str}<br>（点击查看完整照片）")
+                        try:
+                            date_str = datetime.fromtimestamp(fields["日期"]/1000).strftime("%Y-%m-%d")
+                        except (TypeError, ValueError, OSError):
+                            date_str = "未知日期"
+                    score = ""
+                    note = fields.get("备注", "")
+                    if "AI 评分" in note:
+                        score = note.split("AI 评分：")[1].split("\n")[0].strip()
+                    label = f"📷 {date_str}"
+                    if score:
+                        label += f" | 评分 {score}"
+                    cols[i % 4].markdown(label)
+            st.caption(f"共 {len(photo_records)} 张照片，已保存到飞书")
         else:
             st.info("还没有照片，去「拍照对比」页面记录第一张吧")
     except Exception as e:

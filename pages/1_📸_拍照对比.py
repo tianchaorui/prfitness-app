@@ -67,7 +67,14 @@ if st.button("🔍 开始 AI 对比分析", type="primary", width='stretch'):
         st.stop()
 
     if not show_config_status():
-        st.warning("DEEPSEEK_API_KEY 未配置，无法使用 AI 分析")
+        st.warning(
+            "⚠️ **DEEPSEEK_API_KEY 未配置**，无法使用 AI 分析\n\n"
+            "**配置方法：**\n"
+            "1. 访问 https://platform.deepseek.com/ 注册并获取 API Key\n"
+            "2. Streamlit Cloud：进入 App Settings → Secrets，添加 `DEEPSEEK_API_KEY`\n"
+            "3. 本地开发：在项目根目录创建 `.env` 文件，添加 `DEEPSEEK_API_KEY=sk-xxx`\n"
+            "4. 重新刷新页面"
+        )
         st.stop()
 
     analyzer = PhotoAnalyzer()
