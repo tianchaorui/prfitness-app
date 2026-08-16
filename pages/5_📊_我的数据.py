@@ -68,6 +68,13 @@ if "日期" in df.columns:
     df = df.dropna(subset=["日期"])
     df = df.sort_values("日期")
 
+# 数字列强制转 numeric——飞书 API 可能把 Number 字段以 string 形式返回
+# （典型场景：用户手动在表格里粘贴了文本，或字段类型实际上是 Text）
+numeric_cols = ["体重(kg)", "体脂率(%)", "胸围(cm)", "腰围(cm)", "臀围(cm)", "臂围(cm)"]
+for col in numeric_cols:
+    if col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
 st.markdown("---")
 
 # 关键指标卡片
