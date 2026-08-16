@@ -71,9 +71,22 @@ for r in records:
 
 try:
     df = pd.DataFrame(df_data)
-    # 转换日期
+    # 转换日期——兼容多种格式：毫秒时间戳、秒时间戳、字符串日期
     if "日期" in df.columns:
-        df["日期"] = pd.to_datetime(df["日期"], unit="ms", errors="coerce")
+        def parse_date(val):
+            if pd.isna(val) or val is None:
+                return pd.NaT
+            if isinstance(val, (int, float)):
+                # 飞书 Date 字段可能是毫秒或秒时间戳
+                # 判断依据： > 1e12 视为毫秒，否则视为秒
+                if val > 1e12:
+                    return pd.to_datetime(val, unit="ms", errors="coerce")
+                else:
+                    return pd.to_datetime(val, unit="s", errors="coerce")
+            # 字符串日期（如 "2026-08-16"）
+            return pd.to_datetime(val, errors="coerce")
+
+        df["日期"] = df["日期"].apply(parse_date)
         df = df.dropna(subset=["日期"])
         df = df.sort_values("日期")
 

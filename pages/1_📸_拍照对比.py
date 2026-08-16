@@ -95,6 +95,10 @@ if st.button("🔍 开始 AI 对比分析", type="primary", width='stretch'):
                 st.error("AI 返回结果解析失败，请重试")
                 st.stop()
 
+            # 保存到 session_state（切页面后再回来还能看到）
+            st.session_state.last_compare_result = result
+            st.session_state.last_compare_days = days
+
             # 展示结果
             st.markdown("---")
             st.markdown("## 🎯 AI 分析结果")
@@ -200,6 +204,42 @@ if st.button("🔍 开始 AI 对比分析", type="primary", width='stretch'):
             st.error(f"❌ 分析失败：{e}")
             with st.expander("详细错误（排查用）"):
                 st.code(traceback.format_exc())
+
+# 显示上次的对比结果（如果有的话）
+elif st.session_state.get("last_compare_result"):
+    result = st.session_state.last_compare_result
+    days = st.session_state.get("last_compare_days", 30)
+    st.markdown("---")
+    st.markdown("## 🎯 上次分析结果")
+    score = result.get("progress_score", 0)
+    overall = result.get("overall_change", "持平")
+    summary = result.get("summary", "")
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        st.metric("📊 进步评分", f"{score}/100", delta=f"{score - 50:+d}" if score else None)
+    with col_b:
+        emoji = {"进步": "📈", "退步": "📉", "持平": "➡️"}.get(overall, "📊")
+        st.metric("🎯 整体变化", f"{emoji} {overall}")
+    with col_c:
+        st.metric("⏱️ 间隔天数", f"{days} 天")
+    if summary:
+        st.info(f"💡 **AI 总结**：{summary}")
+    changes = result.get("specific_changes", [])
+    if changes:
+        st.markdown("### 🔍 具体变化")
+        for change in changes:
+            st.markdown(f"- ✅ {change}")
+    concerns = result.get("concerns", [])
+    if concerns:
+        st.markdown("### ⚠️ 需要关注")
+        for concern in concerns:
+            st.markdown(f"- ⚠️ {concern}")
+    next_steps = result.get("next_steps", [])
+    if next_steps:
+        st.markdown("### 🎯 下一步建议")
+        for i, step in enumerate(next_steps, 1):
+            st.markdown(f"{i}. 📌 {step}")
+    st.caption("💡 上传新照片重新分析会覆盖此结果")
 
 # 使用说明
 with st.expander("💡 如何拍出有效的对比照片？"):

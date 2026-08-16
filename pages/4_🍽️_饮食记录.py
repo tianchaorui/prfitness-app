@@ -219,8 +219,13 @@ with st.form("meal_form"):
                     st.warning(f"💾 本地记录成功，但飞书同步失败（{str(e)[:50]}）")
                     st.error(f"记录失败：{e}")
 
-            # 清掉 AI 预填状态，避免下一次记录被错误预填
-            st.session_state.ai_food_result = None
+            # 标记 AI 结果已被使用，下一次 rerun 时清除
+            st.session_state._ai_food_used = True
+
+# 清除已使用的 AI 结果（在下一次 rerun 时生效，避免表单值丢失）
+if st.session_state.get("_ai_food_used"):
+    st.session_state.ai_food_result = None
+    st.session_state._ai_food_used = False
 
 # 今日明细
 st.markdown("---")
