@@ -69,11 +69,16 @@ class PhotoAnalyzer:
             temperature=0.5,
             max_tokens=1500,
         )
-        
+
+        # 上游 API 报错时（chat_with_vision 失败会返回 "❌ ..." 字符串），
+        # 把真实错误向上抛，让页面显示具体原因而不是笼统的「解析失败」
+        if response.startswith("❌"):
+            raise RuntimeError(response)
+
         # 解析 Vision 返回的 JSON
         import json
         import re
-        
+
         # 清理响应文本（移除代码块标记）
         cleaned = response.strip()
         if cleaned.startswith("```json"):
@@ -93,7 +98,7 @@ class PhotoAnalyzer:
                     return json.loads(match.group(0))
                 except json.JSONDecodeError:
                     pass
-        
+
         print(f"JSON 解析失败。原始响应：{response[:200]}")
         return None
 
@@ -136,6 +141,10 @@ class PhotoAnalyzer:
             temperature=0.5,
             max_tokens=2000,
         )
+
+        # 上游 API 报错时向上抛，不静默吞掉
+        if response_text.startswith("❌"):
+            raise RuntimeError(response_text)
 
         # 解析 Vision 返回的 JSON
         import json

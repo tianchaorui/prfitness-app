@@ -184,7 +184,10 @@ if st.button("🔍 开始 AI 对比分析", type="primary", width='stretch'):
                 )
 
         except Exception as e:
-            st.error(f"分析失败：{e}")
+            import traceback
+            st.error(f"❌ 分析失败：{e}")
+            with st.expander("详细错误（排查用）"):
+                st.code(traceback.format_exc())
 
 # 使用说明
 with st.expander("💡 如何拍出有效的对比照片？"):

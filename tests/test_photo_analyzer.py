@@ -98,6 +98,31 @@ class TestAnalyzeSingleJSONParsing:
         a = make_analyzer(ai_mock=None)
         assert a.analyze_single(b"\xff\xd8") is None
 
+    def test_raises_on_upstream_error(self, fake_image_bytes):
+        """vision 返回 ❌ 开头时应直接抛错，不静默吞掉。"""
+        ai = self._ai_returning("❌ Vision 调用失败：401 invalid api key")
+        a = make_analyzer(ai)
+        import pytest
+        with pytest.raises(RuntimeError, match="401"):
+            a.analyze_single(fake_image_bytes)
+
+
+class TestCompareTwoJSONParsing:
+    """[photo_analyzer.py:140-167] 走的是同一套解析逻辑，再点测一次保险。"""
+
+    def _ai_returning(self, response):
+        ai = MagicMock()
+        ai.chat_with_vision.return_value = response
+        return ai
+
+    def test_raises_on_upstream_error(self, fake_image_bytes):
+        """vision 返回 ❌ 开头时应直接抛错。"""
+        ai = self._ai_returning("❌ Vision 调用失败：model does not exist")
+        a = make_analyzer(ai)
+        import pytest
+        with pytest.raises(RuntimeError, match="model does not exist"):
+            a.compare_two(fake_image_bytes, fake_image_bytes, days_between=30)
+
 
 class TestCompareTwoJSONParsing:
     """[photo_analyzer.py:140-167] 走的是同一套解析逻辑，再点测一次保险。"""
