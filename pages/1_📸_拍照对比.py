@@ -98,6 +98,20 @@ if st.button("🔍 开始 AI 对比分析", type="primary", width='stretch'):
             # 保存到 session_state（切页面后再回来还能看到）
             st.session_state.last_compare_result = result
             st.session_state.last_compare_days = days
+            # 追加到历史记录列表
+            if "compare_history" not in st.session_state:
+                st.session_state.compare_history = []
+            from datetime import datetime as _dt
+            st.session_state.compare_history.append({
+                "date": _dt.now().strftime("%Y-%m-%d %H:%M"),
+                "days": days,
+                "score": result.get("progress_score", 0),
+                "overall": result.get("overall_change", "持平"),
+                "summary": result.get("summary", ""),
+                "changes": result.get("specific_changes", []),
+                "concerns": result.get("concerns", []),
+                "next_steps": result.get("next_steps", []),
+            })
 
             # 展示结果
             st.markdown("---")
@@ -240,6 +254,30 @@ elif st.session_state.get("last_compare_result"):
         for i, step in enumerate(next_steps, 1):
             st.markdown(f"{i}. 📌 {step}")
     st.caption("💡 上传新照片重新分析会覆盖此结果")
+
+# 历史对比记录
+history = st.session_state.get("compare_history", [])
+if history:
+    st.markdown("---")
+    st.markdown("### 📋 历史对比记录")
+    st.caption(f"共 {len(history)} 次对比（本次会话内，关闭浏览器后清空）")
+    for i, record in enumerate(reversed(history), 1):
+        emoji = {"进步": "📈", "退步": "📉", "持平": "➡️"}.get(record["overall"], "📊")
+        with st.expander(f"{emoji} {record['date']} | 评分 {record['score']}/100 | {record['overall']} | 间隔 {record['days']}天"):
+            if record.get("summary"):
+                st.info(f"💡 {record['summary']}")
+            if record.get("changes"):
+                st.markdown("**变化：**")
+                for c in record["changes"]:
+                    st.markdown(f"- ✅ {c}")
+            if record.get("concerns"):
+                st.markdown("**关注：**")
+                for c in record["concerns"]:
+                    st.markdown(f"- ⚠️ {c}")
+            if record.get("next_steps"):
+                st.markdown("**建议：**")
+                for j, s in enumerate(record["next_steps"], 1):
+                    st.markdown(f"{j}. {s}")
 
 # 使用说明
 with st.expander("💡 如何拍出有效的对比照片？"):

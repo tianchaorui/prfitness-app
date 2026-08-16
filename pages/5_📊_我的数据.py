@@ -209,17 +209,16 @@ if st.button("📝 生成月报", width='stretch'):
             mime="text/markdown",
         )
 
-# 历史照片墙
+# 历史照片墙 + AI 分析记录
 st.markdown("---")
-st.markdown("### 📸 历史照片")
+st.markdown("### 📸 历史照片与 AI 分析")
 st.caption("你的身材变化轨迹")
 
 if feishu:
     try:
         photo_records = [r for r in records if r.get("fields", {}).get("今日照片")]
         if photo_records:
-            cols = st.columns(min(4, len(photo_records)))
-            for i, r in enumerate(photo_records[:8]):
+            for i, r in enumerate(photo_records[:10]):
                 fields = r.get("fields", {})
                 photo_list = fields.get("今日照片", [])
                 if photo_list:
@@ -229,15 +228,21 @@ if feishu:
                             date_str = datetime.fromtimestamp(fields["日期"]/1000).strftime("%Y-%m-%d")
                         except (TypeError, ValueError, OSError):
                             date_str = "未知日期"
-                    score = ""
                     note = fields.get("备注", "")
+                    # 提取 AI 评分
+                    score_text = ""
                     if "AI 评分" in note:
-                        score = note.split("AI 评分：")[1].split("\n")[0].strip()
+                        score_text = note.split("AI 评分：")[1].split("\n")[0].strip()
                     label = f"📷 {date_str}"
-                    if score:
-                        label += f" | 评分 {score}"
-                    cols[i % 4].markdown(label)
-            st.caption(f"共 {len(photo_records)} 张照片，已保存到飞书")
+                    if score_text:
+                        label += f" | AI 评分：{score_text}"
+                    # 显示详细信息
+                    with st.expander(label):
+                        if note:
+                            st.markdown(note)
+                        else:
+                            st.caption("无备注信息")
+            st.caption(f"共 {len(photo_records)} 条记录，已保存到飞书")
         else:
             st.info("还没有照片，去「拍照对比」页面记录第一张吧")
     except Exception as e:
