@@ -12,7 +12,7 @@
 """
 import os
 import glob
-from typing import List, Optional
+from typing import Dict, List, Optional
 import streamlit as st
 
 from core.ai_client import get_ai_client

@@ -155,7 +155,8 @@ class TestGetBodyRecords:
             {"fields": {"日期": 3000}},
             {"fields": {"日期": 2000}},
         ])
-        items = c.get_body_records(limit=10)
+        with patch.dict(core.feishu_client.FEISHU_TABLES, {"body_records": "tbl_test"}):
+            items = c.get_body_records(limit=10)
         dates = [item["fields"]["日期"] for item in items]
         assert dates == [3000, 2000, 1000]
 
@@ -167,7 +168,8 @@ class TestGetBodyRecords:
             {"fields": {"体重(kg)": 70}},  # 没日期
             {"fields": {"日期": 1000}},
         ])
-        items = c.get_body_records()
+        with patch.dict(core.feishu_client.FEISHU_TABLES, {"body_records": "tbl_test"}):
+            items = c.get_body_records()
         assert len(items) == 3
         assert items[0]["fields"]["日期"] == 2000
 
@@ -182,5 +184,6 @@ class TestGetMealRecordsToday:
             {"fields": {"日期": f"{today_str} 12:00"}},
             {"fields": {"日期": "2020-01-01 18:00"}},  # 远古日期
         ])
-        items = c.get_meal_records_today()
+        with patch.dict(core.feishu_client.FEISHU_TABLES, {"meal_logs": "tbl_meal"}):
+            items = c.get_meal_records_today()
         assert len(items) == 1
