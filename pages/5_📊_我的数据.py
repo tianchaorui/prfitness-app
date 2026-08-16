@@ -16,7 +16,12 @@ st.markdown("**所有进度一目了然**——体重、围度、AI 月报")
 # 用户选择
 current_user = render_user_selector()
 
-feishu = get_feishu_client()
+try:
+    feishu = get_feishu_client()
+except Exception as e:
+    st.error(f"❌ 飞书客户端初始化失败：{e}")
+    st.stop()
+
 has_feishu = feishu is not None and bool(get_config("FEISHU_TABLE_BODY"))
 
 if not has_feishu:
@@ -31,24 +36,23 @@ if not has_feishu:
 records = []
 try:
     records = feishu.get_body_records(limit=90, user_id=current_user)
-    if not records:
-        st.info(
-            "📌 **表里还没有数据**\n\n"
-            "可能原因：\n"
-            "- 多维表格「身体记录」里没有任何记录\n"
-            "- 飞书 app 没被授权读这张表（去飞书 UI 把 app 加为「可编辑」）\n"
-            "- APP_TOKEN / FEISHU_TABLE_BODY 填错了"
-        )
 except Exception as e:
     import traceback
-    # 把 traceback 同时打到 Streamlit Cloud 日志（方便远程排查）
     print(f"[MyData] 读取飞书数据失败: {e}", flush=True)
     traceback.print_exc()
     st.error(f"❌ 读取飞书数据失败：{e}")
     with st.expander("详细错误（排查用）"):
         st.code(traceback.format_exc())
+    st.stop()
 
 if not records:
+    st.info(
+        "📌 **表里还没有数据**\n\n"
+        "可能原因：\n"
+        "- 多维表格「身体记录」里没有任何记录\n"
+        "- 飞书 app 没被授权读这张表（去飞书 UI 把 app 加为「可编辑」）\n"
+        "- APP_TOKEN / FEISHU_TABLE_BODY 填错了"
+    )
     st.stop()
 
 # 转成 DataFrame
@@ -65,19 +69,25 @@ for r in records:
         "臂围(cm)": fields.get("臂围(cm)"),
     })
 
-df = pd.DataFrame(df_data)
-# 转换日期
-if "日期" in df.columns:
-    df["日期"] = pd.to_datetime(df["日期"], unit="ms", errors="coerce")
-    df = df.dropna(subset=["日期"])
-    df = df.sort_values("日期")
+try:
+    df = pd.DataFrame(df_data)
+    # 转换日期
+    if "日期" in df.columns:
+        df["日期"] = pd.to_datetime(df["日期"], unit="ms", errors="coerce")
+        df = df.dropna(subset=["日期"])
+        df = df.sort_values("日期")
 
-# 数字列强制转 numeric——飞书 API 可能把 Number 字段以 string 形式返回
-# （典型场景：用户手动在表格里粘贴了文本，或字段类型实际上是 Text）
-numeric_cols = ["体重(kg)", "体脂率(%)", "胸围(cm)", "腰围(cm)", "臀围(cm)", "臂围(cm)"]
-for col in numeric_cols:
-    if col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
+    # 数字列强制转 numeric——飞书 API 可能把 Number 字段以 string 形式返回
+    numeric_cols = ["体重(kg)", "体脂率(%)", "胸围(cm)", "腰围(cm)", "臀围(cm)", "臂围(cm)"]
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+except Exception as e:
+    st.error(f"❌ 数据解析失败：{e}")
+    with st.expander("详细错误（排查用）"):
+        import traceback
+        st.code(traceback.format_exc())
+    st.stop()
 
 st.markdown("---")
 
@@ -130,19 +140,25 @@ st.markdown("---")
 st.markdown("### 📈 体重趋势")
 weight_df = df.dropna(subset=["体重(kg)"])
 if not weight_df.empty:
-    st.line_chart(weight_df.set_index("日期")["体重(kg)"], height=300)
+    try:
+        st.line_chart(weight_df.set_index("日期")["体重(kg)"])
+    except Exception as e:
+        st.warning(f"体重图表加载失败：{e}")
 else:
     st.info("暂无体重数据")
 
 # 围度对比
 st.markdown("### 📏 围度变化")
 circumference_cols = ["胸围(cm)", "腰围(cm)", "臀围(cm)", "臂围(cm)"]
-circ_df = df[["日期"] + [c for c in circumference_cols if c in df.columns]].copy()
-circ_df = circ_df.dropna(axis=1, how="all")
-if len(circ_df.columns) > 1:
-    st.line_chart(circ_df.set_index("日期"), height=300)
-else:
-    st.info("暂无围度数据")
+try:
+    circ_df = df[["日期"] + [c for c in circumference_cols if c in df.columns]].copy()
+    circ_df = circ_df.dropna(axis=1, how="all")
+    if len(circ_df.columns) > 1:
+        st.line_chart(circ_df.set_index("日期"))
+    else:
+        st.info("暂无围度数据")
+except Exception as e:
+    st.warning(f"围度图表加载失败：{e}")
 
 st.markdown("---")
 
