@@ -12,6 +12,19 @@ st.markdown("**基于健身知识库的智能问答**——有上下文、能引
 # 配置检查（只检查可选的飞书配置）
 show_config_status()
 
+# AI 配置预检：避免用户输入后才看到错误
+from core.ai_client import get_ai_client
+if not get_ai_client():
+    st.error(
+        "❌ AI 客户端未配置。\n\n"
+        "请检查 Streamlit Cloud Secrets 是否设置了：\n"
+        "- `DEEPSEEK_API_KEY`（硅基流动 key）\n"
+        "- `DEEPSEEK_BASE_URL` = `https://api.siliconflow.cn/v1`\n"
+        "- `DEEPSEEK_MODEL` = `Qwen/Qwen2.5-7B-Instruct`\n\n"
+        "改完 Save 后会自动重启。"
+    )
+    st.stop()
+
 # 初始化 RAG
 @st.cache_resource
 def get_rag():
@@ -64,16 +77,23 @@ if prompt := st.chat_input("问问你的健身问题..."):
         with st.spinner("🤔 AI 思考中..."):
             user_profile = st.session_state.get("user_profile", {})
             response = rag.ask(prompt, user_profile=user_profile)
-            st.markdown(response)
+            # 上游失败时返回 "❌ ..." 字符串，要显示成红色警告而不是聊天气泡
+            if response.startswith("❌"):
+                st.error(response)
+            else:
+                st.markdown(response)
 
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    # 只有真正成功时才把回复记进会话历史（避免错误信息污染上下文）
+    if not response.startswith("❌"):
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
-    # 保存到飞书（异步，不阻塞）
-    try:
-        rag.save_conversation("user", prompt, st.session_state.session_id)
-        rag.save_conversation("assistant", response, st.session_state.session_id)
-    except Exception:
-        pass  # 保存失败不影响体验
+    # 保存到飞书（异步，不阻塞）—— 只在 AI 真正回复成功时才保存
+    if not response.startswith("❌"):
+        try:
+            rag.save_conversation("user", prompt, st.session_state.session_id)
+            rag.save_conversation("assistant", response, st.session_state.session_id)
+        except Exception:
+            pass  # 保存失败不影响体验
 
 # 快捷问题（首次打开时显示）
 if not st.session_state.messages:
