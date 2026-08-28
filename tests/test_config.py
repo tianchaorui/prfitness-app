@@ -73,7 +73,7 @@ class TestCheckConfig:
         monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-1")
         monkeypatch.setenv("FEISHU_APP_ID", "cli_1")
         monkeypatch.setenv("FEISHU_APP_SECRET", "sec_1")
-        monkeypatch.setenv("FEEPSEEK_APP_TOKEN", "tok_1")
+        monkeypatch.setenv("FEISHU_APP_TOKEN", "tok_1")
         from core.config import check_config
         with patch("core.config.st") as mock_st:
             mock_st.secrets = MagicMock()
@@ -82,6 +82,7 @@ class TestCheckConfig:
         # DEEPSEEK 已经在，没了；FEISHU_* 都在
         assert "DEEPSEEK_API_KEY" not in missing
         assert "FEISHU_APP_ID" not in missing
+        assert "FEISHU_APP_TOKEN" not in missing
 
 
 class TestShowConfigStatus:
