@@ -1,0 +1,124 @@
+name: LLM PR Review (MiniMax)
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Get PR diff
+        id: diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr diff "${{ github.event.pull_request.number }}" > pr.diff
+          LINES=$(wc -l < pr.diff)
+          BYTES=$(wc -c < pr.diff)
+          echo "diff_lines=$LINES" >> "$GITHUB_OUTPUT"
+          echo "diff_bytes=$BYTES" >> "$GITHUB_OUTPUT"
+          echo "::notice::Diff size: $LINES lines, $BYTES bytes"
+
+      - name: Truncate huge diffs
+        if: steps.diff.outputs.diff_bytes > 100000
+        run: |
+          echo "Diff > 100KB, truncating to first 80K chars"
+          head -c 80000 pr.diff > pr.diff.truncated
+          echo "" >> pr.diff.truncated
+          echo "...[truncated, full PR: ${{ github.event.pull_request.html_url }}]" >> pr.diff.truncated
+          mv pr.diff.truncated pr.diff
+
+      - name: Call MiniMax for code review
+        id: review
+        env:
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+        run: |
+          set -e
+          DIFF_CONTENT=$(cat pr.diff)
+          PROMPT=$(cat <<'EOF'
+你是严谨的代码评审员。评审以下 GitHub PR diff 的代码改动。
+
+## 输出格式（Markdown）
+
+按严重度分组：
+- 🔴 P0 必须修（bug、安全、数据丢失）
+- 🟡 P1 应该修（性能、可维护性）
+- 🟢 P2 建议（风格、优化）
+
+每条问题格式：
+- **文件:行号** — 问题描述（一句话）
+- 建议：怎么改
+
+如果没有明显问题，回复：
+> LGTM ✅ — 未发现 P0/P1 问题
+
+要求：
+- 只评本次 diff 改动的代码，不要复述 diff
+- 关注：逻辑错误、边界条件、安全漏洞、性能、并发、可读性
+- 不要寒暄，不要重复 prompt 原文
+EOF
+          )
+
+          PAYLOAD=$(jq -n \
+            --arg model "MiniMax-Text-01" \
+            --arg content "${PROMPT}\n\n\`\`\`diff\n${DIFF_CONTENT}\n\`\`\`" \
+            '{
+              model: $model,
+              messages: [
+                {role: "system", content: "你是代码评审员，只输出评审结论，不寒暄。"},
+                {role: "user", content: $content}
+              ],
+              temperature: 0.2,
+              max_tokens: 2000
+            }')
+
+          HTTP_CODE=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "https://api.minimaxi.com/v1/chat/completions" \
+            -H "Authorization: Bearer $MINIMAX_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+          echo "HTTP $HTTP_CODE"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::MiniMax API failed (HTTP $HTTP_CODE)"
+            cat response.json
+            exit 1
+          fi
+
+          REVIEW=$(jq -r '.choices[0].message.content // "❌ MiniMax 返回空"' response.json)
+          echo "$REVIEW" > review.md
+          echo "::notice::Review length: $(wc -c < review.md) bytes"
+
+      - name: Post PR comment
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "## 🤖 MiniMax PR Review"
+            echo ""
+            cat review.md
+            echo ""
+            echo "---"
+            echo "<sub>🤖 自动评审 · 模型 MiniMax-Text-01 · [运行日志](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>"
+          } > comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file comment.md
+          echo "Posted review to PR #${{ github.event.pull_request.number }}"
+
+      - name: Failure notice
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" --body "## 🤖 MiniMax PR Review
+          ❌ 评审失败，查看 [运行日志](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" || true
